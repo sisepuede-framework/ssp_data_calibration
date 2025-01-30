@@ -1,0 +1,6 @@
+target_region: "croatia"
+iso_alpha_3: "HRV"
+detailed_diff_report_flag: true
+u_bound: 1.8
+l_bound: 0.0
+error_type: "rmse"

@@ -30,26 +30,6 @@ class HelperFunctions:
 
         if lndu_realloc_fact_df['lndu_reallocation_factor'].sum() > 0:
             raise ValueError(" --------------- The sum of 'lndu_reallocation_factor' is greater than 0. Script terminated. -----------------")
-        
-
-    def compare_dfs(self, df1, df2):
-        # Assuming your DataFrames are df1 and df2
-        columns_df1 = set(df1.columns)
-        columns_df2 = set(df2.columns)
-
-        # Columns present in df1 but not in df2
-        diff_in_df1 = columns_df1 - columns_df2
-
-        # Columns present in df2 but not in df1
-        diff_in_df2 = columns_df2 - columns_df1
-
-        # Columns shared in both df1 and df2
-        shared_columns = columns_df1 & columns_df2
-
-        print("Columns in df1 but not in df2:", diff_in_df1)
-        print("Columns in df2 but not in df1:", diff_in_df2)
-        print("Columns shared in both df1 and df2:", shared_columns)
-
 
     def add_missing_cols(self, df1, df2):
         # Identify columns in df1 but not in df2
@@ -61,31 +41,6 @@ class HelperFunctions:
         
         return df2
 
-    def get_indicators_col_names(self, df, cols_with_issue = []):
-
-        cols_to_avoid = ['time_period', 'region'] + cols_with_issue
-        col_names = [col for col in df.columns if col not in cols_to_avoid]
-
-        return col_names
-    
-    def get_cols_with_nans(self, df):
-
-        # Checking if there are any columns with null values in it
-        columns_with_na = df.columns[df.isna().any()].tolist()
-
-        print(columns_with_na)
-
-        return columns_with_na
-    
-    def create_id_column(self, df):
-
-        df['id'] = range(1, len(df) + 1)
-        # Assuming 'df' is your DataFrame and 'id' is the column you want to move to the front
-        cols = ['id'] + [col for col in df if col != 'id']
-        df = df[cols]
-
-        return df
-    
     def ensure_directory_exists(self, path):
         """Creates a directory if it does not exist."""
         if not os.path.exists(path):
@@ -100,6 +55,38 @@ class HelperFunctions:
             config = yaml.safe_load(file)
 
         return config
+    
+    
+    @staticmethod
+    def simple_frac_normalization(df, frac_vars_mapping_df):
+
+        # Copy the DataFrame to avoid modifying the original
+        df_norm = df.copy()
+
+        # Get the prefix of the frac_vars groups to normalize
+        frac_vars_groups_prefix = frac_vars_mapping_df[frac_vars_mapping_df.special_case == 0]['frac_var_name_prefix'].unique()
+        frac_vars_singles_prefix = frac_vars_mapping_df[frac_vars_mapping_df.special_case == 1]['frac_var_name_prefix'].unique()
+
+        # Iterate over the prefix to normalize the frac_vars groups
+        for prefix in frac_vars_groups_prefix:
+            # Get the columns with the prefix
+            cols = [col for col in df_norm.columns if prefix in col]
+
+            # Normalize the columns
+            df_norm[cols] = df_norm[cols].div(df_norm[cols].sum(axis=1), axis=0)
+
+        
+        # TODO: This might need to change
+        # Iterate over the prefix to ensure the frac_vars singles don't exceed 1 or go below 0
+        for prefix in frac_vars_singles_prefix:
+            # Get the column with the prefix
+            col = [col for col in df_norm.columns if prefix in col]
+
+            # Ensure the column values are between 0 and 1
+            df_norm[col] = df_norm[col].clip(0, 1)    
+        
+        return df_norm
+    
     
     def normalize_frac_vars(self, stressed_df, cols_to_avoid, misc_files_path):
 
@@ -158,21 +145,26 @@ class SSPModelForCalibration:
     A class to run the SSP model for calibration.
     """
 
-    def __init__(self):
+    def __init__(self, energy_model_flag=False):
         """
         Initializes the SSPModelForCalibration class.
         Sets up the SISEPUEDE object and logger.
         """
         # Set logger to avoid duplicate logs
         self.log_job = None
-        
+
+        # Set the energy model flag
+        self.energy_model_flag = energy_model_flag
+
+
         # Set up SISEPUEDE Object  
         self.ssp = si.SISEPUEDE(
             "calibrated",
-            initialize_as_dummy=False,  # No connection to Julia is initialized if set to True
+            initialize_as_dummy=not(self.energy_model_flag),  # No connection to Julia is initialized if set to True
             regions=["costa_rica"],  # Dummy region to avoid errors
             db_type="csv"
         )
+        
         
         self.log_job = self.ssp.logger
 
@@ -190,7 +182,7 @@ class SSPModelForCalibration:
         # Retrieve and return the output DataFrame
         try:
             # Run the SSP model projection
-            df_out = self.ssp.models.project(stressed_df.head(), include_electricity_in_energy=False)
+            df_out = self.ssp.models.project(stressed_df.head(), include_electricity_in_energy=self.energy_model_flag)
 
             if df_out is None or df_out.empty:
                 raise ValueError("The output DataFrame is None or empty. Returning an empty DataFrame.")

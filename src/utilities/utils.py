@@ -7,11 +7,8 @@ import sisepuede as si
 
 class HelperFunctions:
     
-    def __init__(self) -> None:
-        pass
-
-    
-    def print_elapsed_time(self, start_time):
+    @staticmethod
+    def print_elapsed_time(start_time):
 
         # Record the end time
         end_time = time.time()
@@ -87,57 +84,44 @@ class HelperFunctions:
         
         return df_norm
     
+    @staticmethod
+    def clip_values(df, list_of_vars_to_clip, min_value=0, max_value=1):
+        """
+        Clips the values in the DataFrame to the specified range.
+
+        Args:
+            df (pd.DataFrame): The input DataFrame.
+            list_of_values_to_cap (list): The list of values to cap.
+            min_value (int, optional): The minimum value. Defaults to 0.
+            max_value (int, optional): The maximum value. Defaults to 1.
+
+        Returns:
+            pd.DataFrame: The DataFrame with capped values.
+        """
+        # Copy the DataFrame to avoid modifying the original
+        df_clipped = df.copy()
+
+        # Clip the values in the DataFrame
+        df_clipped[list_of_vars_to_clip] = df_clipped[list_of_vars_to_clip].clip(min_value, max_value)
+
+        return df_clipped
     
-    def normalize_frac_vars(self, stressed_df, cols_to_avoid, misc_files_path):
+    @staticmethod
+    def log_to_csv(scaling_vector: np.ndarray, error_val: float, error_type: str, OPT_OUTPUT_PATH: str, target_region: str, unique_id: str):
+        """
+        Logs the Error, error type, and scaling vector to a CSV file.
+        """
+        log_data = {'Error': [error_val], 'Error_Type': [error_type], **{f'scale_{i}': [val] for i, val in enumerate(scaling_vector)}}
+        log_df = pd.DataFrame(log_data)
+        
+        # Append to the CSV file or create it if it doesn't exist
+        log_file = os.path.join([OPT_OUTPUT_PATH, f"opt_results_{target_region}_{unique_id}.csv"])
+        log_df.to_csv(log_file, mode='a', header=not pd.io.common.file_exists(log_file), index=False)
 
-        df = stressed_df.copy()
+        return None
+       
+        
 
-        # Normalizing frac_ var groups using softmax
-        df_frac_vars = pd.read_excel(os.path.join(misc_files_path, 'frac_vars.xlsx'), sheet_name='frac_vars_no_special_cases')
-        need_norm_prefix = df_frac_vars.frac_var_name_prefix.unique()
-
-        random_scale = 1e-2  # Scale for random noise
-        epsilon = 1e-6
-
-        for subgroup in need_norm_prefix:
-            subgroup_cols = [i for i in df.columns if subgroup in i]
-            
-            # Skip normalization for columns in cols_to_avoid
-            if any(col in cols_to_avoid for col in subgroup_cols):
-                continue
-
-            # Check if the sum of the group is zero or too small
-            group_sum = df[subgroup_cols].sum(axis=1)
-            is_zero_sum = group_sum < epsilon
-
-            # Add random variability for zero-sum groups
-            if is_zero_sum.any():
-                noise = np.random.uniform(0, random_scale, size=(is_zero_sum.sum(), len(subgroup_cols)))
-                df.loc[is_zero_sum, subgroup_cols] = noise
-
-            # Apply softmax normalization
-            df[subgroup_cols] = df[subgroup_cols].apply(
-                lambda row: np.exp(row) / np.exp(row).sum(), axis=1
-            )
-
-        # Special case for ce_problematic
-        ce_problematic = [
-            'frac_waso_biogas_food',
-            'frac_waso_biogas_sludge',
-            'frac_waso_biogas_yard',
-            'frac_waso_compost_food',
-            'frac_waso_compost_methane_flared',
-            'frac_waso_compost_sludge',
-            'frac_waso_compost_yard'
-        ]
-
-        # Apply softmax normalization for ce_problematic
-        df[ce_problematic] = df[ce_problematic].apply(
-            lambda row: np.exp(row) / np.exp(row).sum(), axis=1
-        )
-
-        return df
-    
 
 
 class SSPModelForCalibration:

@@ -2,3 +2,5 @@ target_region: "croatia"
 iso_alpha_3: "HRV"
 detailed_diff_report_flag: true
 error_type: "rmse"
+swarmsize: 2 
+maxiter: 3

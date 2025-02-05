@@ -210,7 +210,7 @@ class HelperFunctions:
         log_df = pd.DataFrame(log_data)
         
         # Append to the CSV file or create it if it doesn't exist
-        log_file = os.path.join([OPT_OUTPUT_PATH, f"opt_results_{target_region}_{unique_id}.csv"])
+        log_file = os.path.join(OPT_OUTPUT_PATH, f"opt_results_{target_region}_{unique_id}.csv")
         log_df.to_csv(log_file, mode='a', header=not pd.io.common.file_exists(log_file), index=False)
 
         return None
@@ -327,6 +327,7 @@ class SectoralDiffReport:
         self.edga_file_path = os.path.join(sectoral_report_dir_path, 'CSC-GHG_emissions-April2024_to_calibrate.csv') # Edgar data file path containing ground truth data
         self.sectoral_report_dir_path = sectoral_report_dir_path
         self.report_type = 'all-sectors'
+        self.energy_model_failed_flag = False
 
     def load_mapping_table(self):
         """
@@ -455,7 +456,9 @@ class SectoralDiffReport:
             print("The following variables from Vars are not present in simulation_df:")
             for var in missing_variables:
                 print(var)
+            self.energy_model_failed_flag = True
         else:
+            self.energy_model_failed_flag = False
             print("All variables from Vars are present in simulation_df.")
 
         # Returns the updated detailed_report_draft_df

@@ -261,7 +261,7 @@ class SSPModelForCalibration:
         # Retrieve and return the output DataFrame
         try:
             # Run the SSP model projection
-            df_out = self.ssp.models.project(stressed_df.head(), include_electricity_in_energy=self.energy_model_flag)
+            df_out = self.ssp.models.project(stressed_df, include_electricity_in_energy=self.energy_model_flag)
 
             if df_out is None or df_out.empty:
                 raise ValueError("The output DataFrame is None or empty. Returning an empty DataFrame.")

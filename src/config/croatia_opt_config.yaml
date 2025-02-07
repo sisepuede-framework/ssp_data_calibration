@@ -1,6 +1,8 @@
 target_region: "croatia"
 iso_alpha_3: "HRV"
+input_rows: 5
 detailed_diff_report_flag: true
+energy_model_flag: false
 error_type: "rmse"
 swarmsize: 2 
 maxiter: 3

@@ -4,5 +4,5 @@ input_rows: 5
 detailed_diff_report_flag: true
 energy_model_flag: false
 error_type: "rmse"
-swarmsize: 2 
-maxiter: 3
+swarmsize: 3 
+maxiter: 5

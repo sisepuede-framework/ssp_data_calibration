@@ -327,7 +327,7 @@ class SectoralDiffReport:
         self.edga_file_path = os.path.join(sectoral_report_dir_path, 'CSC-GHG_emissions-April2024_to_calibrate.csv') # Edgar data file path containing ground truth data
         self.sectoral_report_dir_path = sectoral_report_dir_path
         self.report_type = 'all-sectors'
-        self.energy_model_failed_flag = False
+        self.model_failed_flag = False
 
     def load_mapping_table(self):
         """
@@ -453,13 +453,13 @@ class SectoralDiffReport:
 
         # Print missing variable names, if any
         if missing_variables:
-            print("The following variables from Vars are not present in simulation_df:")
-            for var in missing_variables:
-                print(var)
-            self.energy_model_failed_flag = True
+            # print("The following variables from Vars are not present in simulation_df:")
+            # for var in missing_variables:
+            #     print(var)
+            self.model_failed_flag = True
         else:
-            self.energy_model_failed_flag = False
-            print("All variables from Vars are present in simulation_df.")
+            self.model_failed_flag = False
+            # print("All variables from Vars are present in simulation_df.")
 
         # Returns the updated detailed_report_draft_df
         return detailed_report_draft_df
@@ -637,12 +637,14 @@ class NonEnergySectoralDiffReport(SectoralDiffReport):
 
         # Print missing variable names, if any
         if missing_variables:
-            print("The following variables from Vars are not present in simulation_df:")
-            for var in missing_variables:
-                print(var)
+            # print("The following variables from Vars are not present in simulation_df:")
+            # for var in missing_variables:
+            #     print(var)
+            self.model_failed_flag = True
         else:
-            print("All variables from Vars are present in simulation_df.")
-
+            # print("All variables from Vars are present in simulation_df.")
+            self.model_failed_flag = False
+            
         # Returns the updated detailed_report_draft_df
         return detailed_report_draft_df
 

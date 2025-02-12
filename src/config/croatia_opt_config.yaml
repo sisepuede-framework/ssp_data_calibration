@@ -1,8 +1,10 @@
-target_region: "croatia"
-iso_alpha_3: "HRV"
+target_region: croatia
+iso_alpha_3: HRV
+stressed_variables_report_version: stressed_variables_report_2025_02_07.xlsx
 input_rows: 5
+normalization_flag: false
 detailed_diff_report_flag: true
 energy_model_flag: false
-error_type: "rmse"
+error_type: rmse
 swarmsize: 3 
-maxiter: 5
+maxiter: 2

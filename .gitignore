@@ -162,9 +162,5 @@ cython_debug/
 #.idea/
 
 
-# large dirs
-output/
-sampled_datasets/
-
 # ignore .mps files
 *.mps

@@ -19,6 +19,7 @@ class HelperFunctions:
             Normalizes fractional variables in a DataFrame based on specified mappings.
         clip_values(df, list_of_vars_to_clip, min_value=0, max_value=1):
         log_to_csv(scaling_vector, error_val, error_type, OPT_OUTPUT_PATH, target_region, unique_id):
+        copy_param_yaml(file_path, new_file_path):
     """
     
     @staticmethod
@@ -122,6 +123,26 @@ class HelperFunctions:
             config = yaml.safe_load(file)
 
         return config
+    
+    @staticmethod
+    def copy_param_yaml(file_path, new_file_path):
+        """
+        Copies the contents of a YAML file to a new file.
+
+        Args:
+            file_path (str): The path to the source YAML file.
+            new_file_path (str): The path to the new YAML file.
+
+        Returns:
+            None
+        """
+        with open(file_path, 'r') as file:
+            config = yaml.safe_load(file)
+
+        with open(new_file_path, 'w') as file:
+            yaml.dump(config, file)
+        
+        return None
     
     
     @staticmethod

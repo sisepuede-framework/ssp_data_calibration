@@ -301,8 +301,6 @@ class SectoralDiffReport:
         iso_alpha_3 (str): The ISO Alpha-3 country code.
         init_year (int): The initial year of the simulation.
         ref_year (int): The reference year for comparison. Default is 2015.
-        mapping_table_path (str): The file path to the mapping table.
-        edga_file_path (str): The file path to the EDGAR data file.
         report_type (str): The type of report. Default is 'all-sectors'.
         model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
     Methods:
@@ -332,10 +330,8 @@ class SectoralDiffReport:
             ref_year (int, optional): The reference year for the simulation. Defaults to 2015.
         Attributes:
             iso_alpha_3 (str): The ISO alpha-3 country code.
-            ref_year (int): The reference year for the simulation.
-            mapping_table_path (str): The path to the mapping table CSV file.
-            init_year (int): The initial year for the simulation.
-            edga_file_path (str): The path to the EDGAR data file containing ground truth data.
+            ref_year (int): The year to calibrate on.
+            init_year (int): The SSP simulation's start year.
             sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
             report_type (str): The type of report, defaults to 'all-sectors'.
             model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
@@ -344,24 +340,16 @@ class SectoralDiffReport:
         
         # Set up variables
         self.iso_alpha_3 = iso_alpha_3
-        self.ref_year = ref_year # Reference year
-        self.mapping_table_path = os.path.join(sectoral_report_dir_path, 'edgar_ssp_cw.csv') # Mapping table path
+        self.ref_year = ref_year # year to calibrate on
         self.init_year = init_year # Simulation's start year
-        self.edga_file_path = os.path.join(sectoral_report_dir_path, 'CSC-GHG_emissions-April2024_to_calibrate.csv') # Edgar data file path containing ground truth data
         self.sectoral_report_dir_path = sectoral_report_dir_path
         self.report_type = 'all-sectors'
         self.model_failed_flag = False
 
-    def load_mapping_table(self):
-        """
-        Load the mapping table from a CSV file.
-        This method reads a CSV file from the path specified by the 
-        `mapping_table_path` attribute and returns it as a pandas DataFrame.
-        Returns:
-            pd.DataFrame: The loaded mapping table as a pandas DataFrame.
-        """
+    def load_mapping_table(self, file_path):
+       
         # Load mapping tables
-        mapping_df = pd.read_csv(self.mapping_table_path)
+        mapping_df = pd.read_csv(file_path)
         
         return mapping_df
     
@@ -383,28 +371,21 @@ class SectoralDiffReport:
         # Add a year column to the simulation data
         simulation_df_filtered['year'] = simulation_df_filtered['time_period'] + self.init_year
 
-        # Filter the simulation data to the reference year and reference primary id
+        # Check if ref_year is present in the simulation data
+        if self.ref_year not in simulation_df_filtered['year'].unique():
+            raise ValueError(f"The reference year {self.ref_year} is not present in the simulation data. Please increase your range of simulated years.")
+
+        # Filter the simulation data to the reference year
         simulation_df_filtered = simulation_df_filtered[simulation_df_filtered['year'] == self.ref_year]
  
         return simulation_df_filtered
     
-    def edgar_data_etl(self):
-        """
-        Extract, transform, and load (ETL) Edgar data.
-        This method performs the following steps:
-        1. Loads Edgar data from a CSV file specified by `self.edga_file_path`.
-        2. Filters the data to include only rows where the 'Code' column matches `self.iso_alpha_3`.
-        3. Creates a new column 'Edgar_Class' by combining the 'CSC Subsector' and 'Gas' columns.
-        4. Specifies the columns to keep (`id_vars`) and the columns to unpivot (`value_vars`).
-        5. Melts the DataFrame to transform it from wide format to long format.
-        6. Converts the 'Year' column to integer type.
-        Returns:
-            pd.DataFrame: A DataFrame in long format with columns 'Edgar_Class', 'Year', and 'Edgar_Values'.
-        """
+    def edgar_data_etl(self, file_path):
+       
         # Load Edgar data
-        edgar_df = pd.read_csv(self.edga_file_path, encoding='latin1')
+        edgar_df = pd.read_csv(file_path, encoding='latin1')
 
-        # Filter Edgar data to the reference year and reference primary id
+        # Filter Edgar data to the region of interest
         edgar_df = edgar_df[edgar_df['Code'] == self.iso_alpha_3].reset_index(drop=True)
 
         # Create Edgar_Class column by combining Subsector and Gas columns
@@ -423,6 +404,19 @@ class SectoralDiffReport:
         edgar_df_long['Year'] = edgar_df_long['Year'].astype(int)
         
         return edgar_df_long
+    
+    def load_emission_targets(self, file_path):
+
+        # Load emissions target df
+        targets_df = pd.read_csv(file_path)
+
+        # Filter the targets_df to relevant columns
+        targets_df = targets_df[['Subsector', 'Gas', 'Edgar_Class', 'Year', self.iso_alpha_3]]
+
+        # Rename the iso_alpha_3 column to 'Edgar_Values'
+        targets_df.rename(columns={self.iso_alpha_3: 'Edgar_Values'}, inplace=True)
+
+        return targets_df
 
     
     def calculate_ssp_emission_totals(self, simulation_df, mapping_df):
@@ -500,10 +494,10 @@ class SectoralDiffReport:
         detailed_diff_report = detailed_report_draft_df.copy()
 
         # Group by Subsector and Edgar_Class and aggregate the Simulation_Values to match Edgar_Values format
-        detailed_diff_report_agg = detailed_diff_report.groupby(['Subsector', 'Edgar_Class'])['Simulation_Values'].sum().reset_index()
+        detailed_diff_report_agg = detailed_diff_report.groupby(['Subsector', 'Gas', 'Edgar_Class'])['Simulation_Values'].sum().reset_index()
 
         # Merge the aggregated DataFrame with the Edgar data
-        detailed_diff_report_merge = pd.merge(detailed_diff_report_agg, edgar_df, how='left', left_on='Edgar_Class', right_on='Edgar_Class')
+        detailed_diff_report_merge = pd.merge(detailed_diff_report_agg, edgar_df, how='left', on=['Subsector', 'Gas', 'Edgar_Class'])
 
         # Calculate the difference between Simulation_Values and Edgar_Values
         detailed_diff_report_merge['diff'] = (detailed_diff_report_merge['Simulation_Values'] - detailed_diff_report_merge['Edgar_Values']) / detailed_diff_report_merge['Edgar_Values']
@@ -511,7 +505,7 @@ class SectoralDiffReport:
         # Reset Year column to ref year to avoid NaN values
         detailed_diff_report_merge['Year'] = self.ref_year
 
-        detailed_diff_report_complete = detailed_diff_report_merge[['Year', 'Subsector', 'Edgar_Class', 'Simulation_Values', 'Edgar_Values', 'diff']]
+        detailed_diff_report_complete = detailed_diff_report_merge[['Year', 'Subsector', 'Gas', 'Edgar_Class', 'Simulation_Values', 'Edgar_Values', 'diff']]
         
         return detailed_diff_report_complete
     
@@ -541,7 +535,7 @@ class SectoralDiffReport:
 
         return subsector_diff_report
     
-    def run_report_generator(self, simulation_df):
+    def run_report_generator(self, simulation_df, emission_targets_path, mapping_table_path):
         """
         Generates and saves detailed and subsector difference reports based on the provided simulation data.
         Args:
@@ -560,9 +554,9 @@ class SectoralDiffReport:
             7. Save the reports to CSV files.
         """
 
-        mapping_df = self.load_mapping_table()
+        mapping_df = self.load_mapping_table(file_path=mapping_table_path)
         simulation_df_filtered = self.load_simulation_output_data(simulation_df)
-        edgar_df = self.edgar_data_etl()
+        edgar_df = self.load_emission_targets(file_path=emission_targets_path)
         detailed_report_draft_df = self.calculate_ssp_emission_totals(simulation_df_filtered, mapping_df)
         detailed_diff_report_complete = self.generate_detailed_diff_report(detailed_report_draft_df, edgar_df)
         subsector_diff_report = self.generate_subsector_diff_report(detailed_diff_report_complete)

@@ -283,6 +283,7 @@ class SectoralDiffReport:
         mapping_table_path (str): The file path to the mapping table.
         edga_file_path (str): The file path to the EDGAR data file.
         report_type (str): The type of report. Default is 'all-sectors'.
+        model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
     Methods:
         load_mapping_table():
             Loads the mapping table from a CSV file.
@@ -316,6 +317,7 @@ class SectoralDiffReport:
             edga_file_path (str): The path to the EDGAR data file containing ground truth data.
             sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
             report_type (str): The type of report, defaults to 'all-sectors'.
+            model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
         """
        
         

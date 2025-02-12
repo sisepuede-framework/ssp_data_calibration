@@ -283,6 +283,7 @@ class SectoralDiffReport:
         mapping_table_path (str): The file path to the mapping table.
         edga_file_path (str): The file path to the EDGAR data file.
         report_type (str): The type of report. Default is 'all-sectors'.
+        model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
     Methods:
         load_mapping_table():
             Loads the mapping table from a CSV file.
@@ -316,6 +317,7 @@ class SectoralDiffReport:
             edga_file_path (str): The path to the EDGAR data file containing ground truth data.
             sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
             report_type (str): The type of report, defaults to 'all-sectors'.
+            model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
         """
        
         
@@ -327,7 +329,7 @@ class SectoralDiffReport:
         self.edga_file_path = os.path.join(sectoral_report_dir_path, 'CSC-GHG_emissions-April2024_to_calibrate.csv') # Edgar data file path containing ground truth data
         self.sectoral_report_dir_path = sectoral_report_dir_path
         self.report_type = 'all-sectors'
-        self.energy_model_failed_flag = False
+        self.model_failed_flag = False
 
     def load_mapping_table(self):
         """
@@ -453,13 +455,13 @@ class SectoralDiffReport:
 
         # Print missing variable names, if any
         if missing_variables:
-            print("The following variables from Vars are not present in simulation_df:")
-            for var in missing_variables:
-                print(var)
-            self.energy_model_failed_flag = True
+            # print("The following variables from Vars are not present in simulation_df:")
+            # for var in missing_variables:
+            #     print(var)
+            self.model_failed_flag = True
         else:
-            self.energy_model_failed_flag = False
-            print("All variables from Vars are present in simulation_df.")
+            self.model_failed_flag = False
+            # print("All variables from Vars are present in simulation_df.")
 
         # Returns the updated detailed_report_draft_df
         return detailed_report_draft_df
@@ -637,12 +639,14 @@ class NonEnergySectoralDiffReport(SectoralDiffReport):
 
         # Print missing variable names, if any
         if missing_variables:
-            print("The following variables from Vars are not present in simulation_df:")
-            for var in missing_variables:
-                print(var)
+            # print("The following variables from Vars are not present in simulation_df:")
+            # for var in missing_variables:
+            #     print(var)
+            self.model_failed_flag = True
         else:
-            print("All variables from Vars are present in simulation_df.")
-
+            # print("All variables from Vars are present in simulation_df.")
+            self.model_failed_flag = False
+            
         # Returns the updated detailed_report_draft_df
         return detailed_report_draft_df
 

@@ -183,13 +183,54 @@ class DiffReportUtils:
         else:
             self.model_failed_flag = False
 
-        # Drop the Vars column
-        ssp_emissions_report.drop(columns=['Vars'], inplace=True)
-
         # Make column names lowercase
         ssp_emissions_report.columns = ssp_emissions_report.columns.str.lower()
 
+        # Drop unnecessary columns
+        ssp_emissions_report.drop(columns=['vars', 'edgar_subsector', 'edgar_sector'], inplace=True)
+
         return ssp_emissions_report
+
+    def merge_ssp_with_edgar(self, ssp_emissions_report, edgar_emissions_df):
+        
+        df = ssp_emissions_report.copy()
+
+        # Merge the ssp_emissions_report with edgar_emissions_df
+        df_merged = pd.merge(df, edgar_emissions_df, how='left', on='edgar_class')
+
+        # return df_merged
+
+        #TODO: Distribute the edgar_emission in ippu hfc and ag-ch4 proportionally.
+        #TODO: Calculate diff and squared diffs
+        #TODO: Reset year to ref year to avoid NaNs
+
+        return None
+    
+    # def generate_subsector_diff_report(self, detailed_diff_report_complete):
+    #     """
+    #     Generates a subsector difference report by comparing simulation values with Edgar values.
+    #     Args:
+    #         detailed_diff_report_complete (pd.DataFrame): DataFrame containing detailed difference report with columns 
+    #                                                       'Subsector', 'Simulation_Values', and 'Edgar_Values'.
+    #     Returns:
+    #         pd.DataFrame: A DataFrame containing the subsector difference report with columns 'Year', 'Subsector', 
+    #                       'Simulation_Values', 'Edgar_Values', and 'diff'. The 'diff' column represents the difference 
+    #                       between 'Simulation_Values' and 'Edgar_Values' as a fraction of 'Edgar_Values'.
+    #     """
+        
+    #     # Group by Subsector and calculate the sum of the Simulation_Values and Edgar_Values
+    #     subsector_diff_report = detailed_diff_report_complete.groupby('Subsector')[['Simulation_Values', 'Edgar_Values']].sum().reset_index()
+
+    #     # Calculate the difference between Simulation_Values and Edgar_Values
+    #     subsector_diff_report['diff'] = (subsector_diff_report['Simulation_Values'] - subsector_diff_report['Edgar_Values']) / subsector_diff_report['Edgar_Values']
+
+    #     # Reset Year column to ref year to avoid NaN values
+    #     subsector_diff_report['Year'] = self.ref_year
+
+    #     # Reorder columns
+    #     subsector_diff_report = subsector_diff_report[['Year', 'Subsector', 'Simulation_Values', 'Edgar_Values', 'diff']] 
+
+    #     return subsector_diff_report
     
 
     

@@ -481,6 +481,24 @@ class SectoralDiffReport:
         # Returns the updated detailed_report_draft_df
         return detailed_report_draft_df
     
+    def calculate_difference(self, diff_report_draft_df):
+        """
+        Calculate the difference and squared difference between simulation values and Edgar values.
+
+        Args:
+            diff_report_draft_df (pd.DataFrame): DataFrame containing 'Simulation_Values' and 'Edgar_Values' columns.
+
+        Returns:
+            pd.DataFrame: DataFrame with additional columns 'diff' and 'squared_diff' representing the relative difference
+                          and squared difference between 'Simulation_Values' and 'Edgar_Values', respectively.
+        """
+
+        df = diff_report_draft_df.copy()
+        df['diff'] = (df['Simulation_Values'] - df['Edgar_Values']) / df['Edgar_Values']
+        df['squared_diff'] = (df['Edgar_Values'] - df['Simulation_Values']) ** 2
+        return df
+    
+    
     def generate_detailed_diff_report(self, detailed_report_draft_df, edgar_df):
         """
         Generates a detailed difference report by comparing simulation values with Edgar values.
@@ -534,6 +552,21 @@ class SectoralDiffReport:
         subsector_diff_report = subsector_diff_report[['Year', 'Subsector', 'Simulation_Values', 'Edgar_Values', 'diff']] 
 
         return subsector_diff_report
+    
+    def calculate_weights(self, detailed_diff_report_complete):
+        """
+        Calculate weights based on the absolute values of 'Edgar_Values' column.
+
+        Parameters:
+        detailed_diff_report_complete (pd.DataFrame): DataFrame containing the 'Edgar_Values' column.
+
+        Returns:
+        pd.DataFrame: DataFrame with an additional 'Weights' column where each weight is calculated as the 
+                      absolute value of 'Edgar_Values' divided by the sum of absolute values of 'Edgar_Values'.
+        """
+        df = detailed_diff_report_complete.copy()
+        df['Weights'] = df['Edgar_Values'].abs() / df['Edgar_Values'].abs().sum()
+        return df
     
     def run_report_generator(self, simulation_df, emission_targets_path, mapping_table_path):
         """
@@ -670,42 +703,41 @@ class ErrorFunctions:
     """
     A class containing various error calculation functions for comparing simulation values with reference values.
     Methods:
-        weighted_mse(dataframe: pd.DataFrame) -> float:
+        wmse(dataframe: pd.DataFrame) -> float:
         rmse(dataframe: pd.DataFrame) -> float:
         mae(dataframe: pd.DataFrame) -> float:
         calculate_error(error_type: str, dataframe: pd.DataFrame) -> float:
     """
     
-    def weighted_mse(self, dataframe):
+    def mse(self, dataframe):
+        """
+        Computes the Mean Squared Error (MSE).
+
+        Args:
+            dataframe (pd.DataFrame): DataFrame containing squared differences.
+
+        Returns:
+            float: MSE value.
+        """
+
+        # Compute MSE
+        mse_value = dataframe['squared_diff'].mean()
+        return mse_value
+    
+    
+    def wmse(self, dataframe):
         """
         Computes the weighted Mean Squared Error (MSE) based on the `diff` column as weights.
 
         Args:
-            dataframe (pd.DataFrame): DataFrame containing simulation and reference values.
+            dataframe (pd.DataFrame): DataFrame containing weights, and squared differences.
 
         Returns:
             float: Weighted MSE value.
         """
-        # TODO: Normalizing and applying weights based on emission contribution might be a better approach.
-
-        # Drop rows with NaN values in key columns
-        filtered_df = dataframe.dropna(subset=['Simulation_Values', 'Edgar_Values', 'diff'])
-
-        # Filter rows with valid EDGAR values to avoid infinite weights
-        filtered_df = filtered_df[filtered_df['Edgar_Values'] != 0]
-
-        # Ensure `diff` is absolute for weights
-        filtered_df['weight'] = filtered_df['diff'].abs()
-
-        # Calculate squared differences between Simulation_Values and Edgar_Values
-        filtered_df['squared_error'] = (filtered_df['Simulation_Values'] - filtered_df['Edgar_Values']) ** 2
-
-        # Calculate Weighted MSE
-        if filtered_df['weight'].sum() == 0:  # Avoid division by zero
-            return float('inf')  # Assign a high error if weights are invalid
-
-        weighted_mse_value = (filtered_df['squared_error'] * filtered_df['weight']).sum() / filtered_df['weight'].sum()
-        return weighted_mse_value
+        # Compute WMSE
+        wmse = np.sum(dataframe['Weights'] * dataframe['squared_diff']) / np.sum(dataframe['Weights'])
+        return wmse
     
 
     def rmse(self, dataframe):
@@ -713,58 +745,32 @@ class ErrorFunctions:
         Computes the Root Mean Squared Error (RMSE).
 
         Args:
-            dataframe (pd.DataFrame): DataFrame containing simulation and reference values.
+            dataframe (pd.DataFrame): DataFrame containing squared differences.
 
         Returns:
             float: RMSE value.
         """
-        # Drop rows with NaN values in the relevant columns
-        filtered_df = dataframe.dropna(subset=['Simulation_Values', 'Edgar_Values'])
-
-        # Filter rows with valid EDGAR values to avoid skewing the RMSE
-        filtered_df = filtered_df[filtered_df['Edgar_Values'] != 0]
-
-        # Calculate squared differences
-        filtered_df['squared_error'] = (filtered_df['Simulation_Values'] - filtered_df['Edgar_Values']) ** 2
 
         # Compute RMSE
-        rmse_value = (filtered_df['squared_error'].mean()) ** 0.5
+        rmse_value = self.mse(dataframe) ** 0.5
         return rmse_value
     
-    def mae(dataframe):
-        """
-        Computes Mean Absolute Error (MAE).
-
-        Args:
-            dataframe (pd.DataFrame): DataFrame with Simulation and Edgar values.
-
-        Returns:
-            float: MAE value.
-        """
-        # TODO: Complete this method
-        
-        # Drop rows with NaN in key columns
-        filtered_df = dataframe.dropna(subset=['Simulation_Values', 'Edgar_Values'])
-        
-        # Compute MAE
-        mae_value = (filtered_df['Simulation_Values'] - filtered_df['Edgar_Values']).abs().mean()
-        return mae_value
     
     def calculate_error(self, error_type, dataframe):
         """
         Calculates the error based on the specified error type.
 
         Args:
-            dataframe (pd.DataFrame): DataFrame containing simulation and reference values.
+            dataframe (pd.DataFrame): DataFrame containing weights and squared differences.
 
         Returns:
             float: Error value.
         """
         if error_type == 'weighted_mse':
-            return self.weighted_mse(dataframe)
+            return self.wmse(dataframe)
         elif error_type == 'rmse':
             return self.rmse(dataframe)
-        elif error_type == 'mae':
-            return self.mae(dataframe)
+        elif error_type == 'mse':
+            return self.mse(dataframe)
         else:
             raise ValueError(f"Error type '{error_type}' is not supported.")

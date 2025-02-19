@@ -1,0 +1,11 @@
+detailed_diff_report_flag: true
+energy_model_flag: false
+error_type: wmse
+input_rows: 10
+iso_alpha_3: HRV
+maxiter: 2
+normalization_flag: false
+stressed_variables_report_version: stressed_variables_report_2025_02_07.xlsx
+swarmsize: 3
+target_region: croatia
+weight_type: norm_weight

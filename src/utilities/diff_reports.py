@@ -1,10 +1,26 @@
 import pandas as pd
 import numpy as np
-
+import os
 
 class DiffReportUtils:
+    """
+    DiffReportUtils is a utility class for handling and processing SSP and EDGAR emissions data. 
+    It provides methods to load, clean, and transform data, calculate weights and deviations, 
+    and generate emissions reports.
+    Methods:
+        __init__(self, iso_alpha_3, ssp_edgar_cw_path, sim_init_year=2015, comparison_year=2015):
+            Initializes the DiffReportUtils class with the given parameters.
+        load_ssp_edgar_cw(self):
+        clean_ssp_out_data(self, ssp_out_df):
+        calculate_weights(self, edgar_region_df):
+        edgar_emission_db_etl(self, file_path):
+        generate_ssp_emissions_report(self, ssp_out_df):
+        adjust_duplicated_edgar_classes(self, df_ssp_edgar):
+        calculate_ssp_edgar_deviation(self, df_ssp_edgar):
+        merge_ssp_with_edgar(self, ssp_emissions_report, edgar_emissions_df):
+    """
     
-    def __init__(self, iso_alpha_3, ssp_edgar_cw_path, sim_init_year=2015, comparison_year=2015):
+    def __init__(self, iso_alpha_3, ssp_edgar_cw_path, sectoral_report_dir_path, energy_model_flag, sim_init_year=2015, comparison_year=2015):
         """
         Initializes the DiffReports class with the given parameters.
 
@@ -23,11 +39,15 @@ class DiffReportUtils:
             comparison_year (int): Stores the year for comparison between SSP and EDGAR.
         """
         self.ssp_edgar_cw_path = ssp_edgar_cw_path
+        self.sectoral_report_dir_path = sectoral_report_dir_path
         self.iso_alpha_3 = iso_alpha_3
         self.epsilon = 1e-6
         self.model_failed_flag = False
+        self.energy_model_flag = energy_model_flag
         self.sim_init_year = sim_init_year
         self.comparison_year = comparison_year
+        self.sectoral_emission_report = pd.DataFrame()
+        self.subsector_emission_report = pd.DataFrame()
 
     def load_ssp_edgar_cw(self):
         """
@@ -39,6 +59,9 @@ class DiffReportUtils:
         """
         # Load cw tables
         ssp_edgar_cw = pd.read_csv(self.ssp_edgar_cw_path)
+
+        # Set column names to lowercase
+        ssp_edgar_cw.columns = ssp_edgar_cw.columns.str.lower()
         
         return ssp_edgar_cw
     
@@ -142,16 +165,16 @@ class DiffReportUtils:
         Generate an SSP emissions report based on the provided simulation DataFrame.
         This method creates a draft SSP emissions report from the `ssp_edgar_cw` table,
         calculates total emissions for each row based on the variables specified in the
-        'Vars' column, and updates the report with these values. It also flags if any
-        variables specified in 'Vars' are missing from the simulation DataFrame.
+        'vars' column, and updates the report with these values. It also flags if any
+        variables specified in 'vars' are missing from the simulation DataFrame.
         Args:
             ssp_out_df (pd.DataFrame): A DataFrame containing simulation data with
                                           columns representing different variables.
         Returns:
             pd.DataFrame: A DataFrame containing the SSP emissions report with total
-                          emissions calculated and the 'Vars' column removed.
+                          emissions calculated and the 'vars' column removed.
         Side Effects:
-            - Sets `self.model_failed_flag` to True if any variables specified in 'Vars'
+            - Sets `self.model_failed_flag` to True if any variables specified in 'vars'
               are missing from the simulation DataFrame, otherwise sets it to False.
         """
         
@@ -172,7 +195,7 @@ class DiffReportUtils:
 
         # Iterate through each row in detailed_report_draft_df
         for index, row in ssp_emissions_report.iterrows():
-            vars_list = row['Vars'].split(':')  # Split Vars column into variable names
+            vars_list = row['vars'].split(':')  # Split Vars column into variable names
 
             # Check which variable names are missing in simulation_df
             missing_in_row = [var for var in vars_list if var not in simulation_df_cols]
@@ -185,22 +208,26 @@ class DiffReportUtils:
                 # Sum the matching columns to get the total emissions for the subsector
                 subsector_total_emissions = simulation_df[matching_columns].sum(axis=1).values[0]
             else:
-                subsector_total_emissions = -999  # No matching columns found
+                # Set subsector_total_emissions to NaN if no matching columns are found
+                subsector_total_emissions = np.nan
 
             # Update the simulation_values column in detailed_report_draft_df
             ssp_emissions_report.at[index, 'ssp_emission'] = subsector_total_emissions
 
         # Set model_failed_flag to True if there are missing variables
-        if missing_variables:
-            # print("The following variables from Vars are not present in simulation_df:")
-            # for var in missing_variables:
-            #     print(var)
+        if missing_variables and self.energy_model_flag:
+            print(f"Missing variables for {row['subsector']}")
             self.model_failed_flag = True
+
+        elif missing_variables and not self.energy_model_flag:
+            
+            if row['subsector'] not in ['entc', 'fgtv', 'ccsq']:
+                print(f"Missing variables for {row['subsector']}")
+                self.model_failed_flag = True
+            else: 
+                self.model_failed_flag = False
         else:
             self.model_failed_flag = False
-
-        # Make column names lowercase
-        ssp_emissions_report.columns = ssp_emissions_report.columns.str.lower()
 
         # Drop unnecessary columns
         ssp_emissions_report.drop(columns=['vars', 'edgar_subsector', 'edgar_sector'], inplace=True)
@@ -234,7 +261,7 @@ class DiffReportUtils:
             # The duplicated rows have the same value in the edgar_emission column so we get the first value and divide it by the number of duplicated rows
             new_emission = duplicated_rows['edgar_emission'].iloc[0] / len(duplicated_rows)
 
-            print(f"Updating {edgar_class} with {new_emission}")
+            # print(f"Updating {edgar_class} with {new_emission}")
 
             # Update the edgar_emission values of the duplicated rows with new_emission value
             df.loc[df['edgar_class'] == edgar_class, 'edgar_emission'] = new_emission
@@ -291,36 +318,80 @@ class DiffReportUtils:
         #Reset year to ref year to avoid NaNs
         df_merged['year'] = self.comparison_year
 
-        # Set missing data to -999
-        df_merged.fillna(-999, inplace=True)
-
         return df_merged
     
-    # def generate_subsector_diff_report(self, detailed_diff_report_complete):
-    #     """
-    #     Generates a subsector difference report by comparing simulation values with Edgar values.
-    #     Args:
-    #         detailed_diff_report_complete (pd.DataFrame): DataFrame containing detailed difference report with columns 
-    #                                                       'Subsector', 'Simulation_Values', and 'Edgar_Values'.
-    #     Returns:
-    #         pd.DataFrame: A DataFrame containing the subsector difference report with columns 'Year', 'Subsector', 
-    #                       'Simulation_Values', 'Edgar_Values', and 'diff'. The 'diff' column represents the difference 
-    #                       between 'Simulation_Values' and 'Edgar_Values' as a fraction of 'Edgar_Values'.
-    #     """
+    
+    def generate_subsector_diff_report(self, detailed_diff_report_complete):
+        """
+        Generates a subsector difference report by comparing simulation values with Edgar values.
+        Args:
+            detailed_diff_report_complete (pd.DataFrame): DataFrame containing detailed difference report with columns 
+                                                          'Subsector', 'Simulation_Values', and 'Edgar_Values'.
+        Returns:
+            pd.DataFrame: A DataFrame containing the subsector difference report with columns 'Year', 'Subsector', 
+                          'Simulation_Values', 'Edgar_Values', and 'diff'. The 'diff' column represents the difference 
+                          between 'Simulation_Values' and 'Edgar_Values' as a fraction of 'Edgar_Values'.
+        """
         
-    #     # Group by Subsector and calculate the sum of the Simulation_Values and Edgar_Values
-    #     subsector_diff_report = detailed_diff_report_complete.groupby('Subsector')[['Simulation_Values', 'Edgar_Values']].sum().reset_index()
+        # Group by Subsector and calculate the sum of the Simulation_Values and Edgar_Values
+        subsector_diff_report = detailed_diff_report_complete.groupby('subsector')[['ssp_emission', 'edgar_emission_epsilon']].sum().reset_index()
 
-    #     # Calculate the difference between Simulation_Values and Edgar_Values
-    #     subsector_diff_report['diff'] = (subsector_diff_report['Simulation_Values'] - subsector_diff_report['Edgar_Values']) / subsector_diff_report['Edgar_Values']
+        # Replace 0 values in ssp_emission with NaNs
+        subsector_diff_report['ssp_emission'] = subsector_diff_report['ssp_emission'].replace(0, np.nan)
 
-    #     # Reset Year column to ref year to avoid NaN values
-    #     subsector_diff_report['Year'] = self.ref_year
+        # Calculate diffs
+        subsector_diff_report = self.calculate_ssp_edgar_deviation(subsector_diff_report)
+ 
+        # Reset Year column to ref year to avoid NaN values
+        subsector_diff_report['year'] = self.comparison_year
 
-    #     # Reorder columns
-    #     subsector_diff_report = subsector_diff_report[['Year', 'Subsector', 'Simulation_Values', 'Edgar_Values', 'diff']] 
+        return subsector_diff_report
+    
+    
+    
+    def run_report_generator(self, edgar_emission_df, ssp_out_df):
+        """
+        Run the report generator to generate a sectoral emissions report.
+        This method generates a sectoral emissions report by merging the SSP emissions report with the EDGAR emissions data,
+        calculating deviations and squared deviations, and handling missing data. It then sets the `sectoral_emission_report`
+        attribute to the generated report.
+        Args:
+            edgar_emission_df (pd.DataFrame): The EDGAR emissions data DataFrame.
+            ssp_out_df (pd.DataFrame): The SSP output data DataFrame.
+        Returns:
+            pd.DataFrame: The sectoral emissions report DataFrame.
+        """
+        
+        # Generate the SSP emissions report
+        ssp_emissions_report = self.generate_ssp_emissions_report(ssp_out_df)
 
-    #     return subsector_diff_report
+        # Merge the SSP emissions report with the EDGAR emissions data
+        merged_df = self.merge_ssp_with_edgar(ssp_emissions_report, edgar_emission_df)
+
+        # Set the sectoral_emission_report attribute to the generated report
+        self.sectoral_emission_report = merged_df.copy()
+
+        # Set missing data to -999
+        # merged_df.fillna(-999, inplace=True)
+
+        # Save the report to a CSV file
+        merged_df.to_csv(os.path.join(self.sectoral_report_dir_path, f"sectoral_emission_report_{self.iso_alpha_3}.csv"), index=False)
+
+        # Generate subsector difference report
+        subsector_diff_report = self.generate_subsector_diff_report(merged_df)
+
+        # Set the subsector_emission_report attribute to the generated report
+        self.subsector_emission_report = subsector_diff_report.copy()
+        
+        # Set missing data to -999
+        # subsector_diff_report.fillna(-999, inplace=True)
+        
+        # Save the subsector difference report to a CSV file
+        subsector_diff_report.to_csv(os.path.join(self.sectoral_report_dir_path, f"subsector_diff_report_{self.iso_alpha_3}.csv"), index=False)
+
+        
+        return None
+    
     
 
     

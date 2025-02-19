@@ -294,49 +294,9 @@ class SSPModelForCalibration:
     
 
 class SectoralDiffReport:
-    """
-    A class to generate sectoral difference reports by comparing simulation data with EDGAR data.
-    Attributes:
-        sectoral_report_dir_path (str): The directory path where the sectoral report files are stored.
-        iso_alpha_3 (str): The ISO Alpha-3 country code.
-        init_year (int): The initial year of the simulation.
-        ref_year (int): The reference year for comparison. Default is 2015.
-        report_type (str): The type of report. Default is 'all-sectors'.
-        model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
-    Methods:
-        load_mapping_table():
-            Loads the mapping table from a CSV file.
-        load_simulation_output_data(simulation_df):
-            Filters the simulation output data to the reference year.
-        edgar_data_etl():
-            Extracts, transforms, and loads the EDGAR data.
-        calculate_ssp_emission_totals(simulation_df, mapping_df):
-            Calculates the total emissions from the simulation data based on the mapping table.
-        generate_detailed_diff_report(detailed_report_draft_df, edgar_df):
-            Generates a detailed difference report by comparing simulation data with EDGAR data.
-        generate_subsector_diff_report(detailed_diff_report_complete):
-            Generates a subsector difference report by aggregating the detailed difference report.
-        generate_diff_reports(simulation_df):
-            Generates both detailed and subsector difference reports and saves them as CSV files.
-    """
+    
     
     def __init__(self, sectoral_report_dir_path, iso_alpha_3, init_year, ref_year=2015):
-        """
-        Initializes the utility class with the given parameters.
-        Args:
-            sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
-            iso_alpha_3 (str): The ISO alpha-3 country code.
-            init_year (int): The initial year for the simulation.
-            ref_year (int, optional): The reference year for the simulation. Defaults to 2015.
-        Attributes:
-            iso_alpha_3 (str): The ISO alpha-3 country code.
-            ref_year (int): The year to calibrate on.
-            init_year (int): The SSP simulation's start year.
-            sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
-            report_type (str): The type of report, defaults to 'all-sectors'.
-            model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
-        """
-       
         
         # Set up variables
         self.iso_alpha_3 = iso_alpha_3
@@ -512,7 +472,7 @@ class SectoralDiffReport:
         detailed_diff_report = detailed_report_draft_df.copy()
 
         # Group by Subsector and Edgar_Class and aggregate the Simulation_Values to match Edgar_Values format
-        detailed_diff_report_agg = detailed_diff_report.groupby(['Subsector', 'Gas', 'Edgar_Class'])['Simulation_Values'].sum().reset_index()
+        detailed_diff_report_agg = detailed_diff_report.groupby(['Subsector', 'Edgar_Class'])['Simulation_Values'].sum().reset_index()
 
         # Merge the aggregated DataFrame with the Edgar data
         detailed_diff_report_merge = pd.merge(detailed_diff_report_agg, edgar_df, how='left', on=['Subsector', 'Gas', 'Edgar_Class'])
@@ -725,7 +685,7 @@ class ErrorFunctions:
         return mse_value
     
     
-    def wmse(self, dataframe):
+    def wmse(self, dataframe, weight_type='norm_weight'):
         """
         Computes the weighted Mean Squared Error (MSE) based on the `diff` column as weights.
 
@@ -736,7 +696,7 @@ class ErrorFunctions:
             float: Weighted MSE value.
         """
         # Compute WMSE
-        wmse = np.sum(dataframe['Weights'] * dataframe['squared_diff']) / np.sum(dataframe['Weights'])
+        wmse = np.sum(dataframe[weight_type] * dataframe['squared_diff']) / np.sum(dataframe[weight_type])
         return wmse
     
 
@@ -756,7 +716,7 @@ class ErrorFunctions:
         return rmse_value
     
     
-    def calculate_error(self, error_type, dataframe):
+    def calculate_error(self, error_type, dataframe, weight_type='norm_weight'):
         """
         Calculates the error based on the specified error type.
 
@@ -766,10 +726,10 @@ class ErrorFunctions:
         Returns:
             float: Error value.
         """
-        if error_type == 'weighted_mse':
+        if error_type == 'wmse':
             return self.wmse(dataframe)
         elif error_type == 'rmse':
-            return self.rmse(dataframe)
+            return self.rmse(dataframe, weight_type=weight_type)
         elif error_type == 'mse':
             return self.mse(dataframe)
         else:

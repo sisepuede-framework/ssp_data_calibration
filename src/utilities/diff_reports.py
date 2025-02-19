@@ -371,23 +371,19 @@ class DiffReportUtils:
         # Set the sectoral_emission_report attribute to the generated report
         self.sectoral_emission_report = merged_df.copy()
 
-        # Set missing data to -999
-        # merged_df.fillna(-999, inplace=True)
 
         # Save the report to a CSV file
-        merged_df.to_csv(os.path.join(self.sectoral_report_dir_path, f"sectoral_emission_report_{self.iso_alpha_3}.csv"), index=False)
+        merged_df.to_csv(os.path.join(self.sectoral_report_dir_path, f"detailed_emission_report_{self.iso_alpha_3}.csv"), index=False)
 
-        # Generate subsector difference report
+        # Generate subsector emission report
         subsector_diff_report = self.generate_subsector_diff_report(merged_df)
 
         # Set the subsector_emission_report attribute to the generated report
         self.subsector_emission_report = subsector_diff_report.copy()
         
-        # Set missing data to -999
-        # subsector_diff_report.fillna(-999, inplace=True)
         
         # Save the subsector difference report to a CSV file
-        subsector_diff_report.to_csv(os.path.join(self.sectoral_report_dir_path, f"subsector_diff_report_{self.iso_alpha_3}.csv"), index=False)
+        subsector_diff_report.to_csv(os.path.join(self.sectoral_report_dir_path, f"subsector_emission_report_{self.iso_alpha_3}.csv"), index=False)
 
         
         return None

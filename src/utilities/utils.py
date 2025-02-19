@@ -236,9 +236,6 @@ class HelperFunctions:
 
         return None
        
-        
-
-
 
 class SSPModelForCalibration:
     """
@@ -293,412 +290,6 @@ class SSPModelForCalibration:
         return df_out
     
 
-class SectoralDiffReport:
-    """
-    A class to generate sectoral difference reports by comparing simulation data with EDGAR data.
-    Attributes:
-        sectoral_report_dir_path (str): The directory path where the sectoral report files are stored.
-        iso_alpha_3 (str): The ISO Alpha-3 country code.
-        init_year (int): The initial year of the simulation.
-        ref_year (int): The reference year for comparison. Default is 2015.
-        report_type (str): The type of report. Default is 'all-sectors'.
-        model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
-    Methods:
-        load_mapping_table():
-            Loads the mapping table from a CSV file.
-        load_simulation_output_data(simulation_df):
-            Filters the simulation output data to the reference year.
-        edgar_data_etl():
-            Extracts, transforms, and loads the EDGAR data.
-        calculate_ssp_emission_totals(simulation_df, mapping_df):
-            Calculates the total emissions from the simulation data based on the mapping table.
-        generate_detailed_diff_report(detailed_report_draft_df, edgar_df):
-            Generates a detailed difference report by comparing simulation data with EDGAR data.
-        generate_subsector_diff_report(detailed_diff_report_complete):
-            Generates a subsector difference report by aggregating the detailed difference report.
-        generate_diff_reports(simulation_df):
-            Generates both detailed and subsector difference reports and saves them as CSV files.
-    """
-    
-    def __init__(self, sectoral_report_dir_path, iso_alpha_3, init_year, ref_year=2015):
-        """
-        Initializes the utility class with the given parameters.
-        Args:
-            sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
-            iso_alpha_3 (str): The ISO alpha-3 country code.
-            init_year (int): The initial year for the simulation.
-            ref_year (int, optional): The reference year for the simulation. Defaults to 2015.
-        Attributes:
-            iso_alpha_3 (str): The ISO alpha-3 country code.
-            ref_year (int): The year to calibrate on.
-            init_year (int): The SSP simulation's start year.
-            sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
-            report_type (str): The type of report, defaults to 'all-sectors'.
-            model_failed_flag (bool): A flag to indicate if the model failed to find any variables in the mapping table.
-        """
-       
-        
-        # Set up variables
-        self.iso_alpha_3 = iso_alpha_3
-        self.ref_year = ref_year # year to calibrate on
-        self.init_year = init_year # Simulation's start year
-        self.sectoral_report_dir_path = sectoral_report_dir_path
-        self.report_type = 'all-sectors'
-        self.model_failed_flag = False
-
-    def load_mapping_table(self, file_path):
-       
-        # Load mapping tables
-        mapping_df = pd.read_csv(file_path)
-        
-        return mapping_df
-    
-    def load_simulation_output_data(self, simulation_df):
-        """
-        Filters the simulation output data for the reference year.
-        This method takes a DataFrame containing simulation output data, adds a 'year' column
-        based on the 'time_period' column and the initial year, and then filters the DataFrame
-        to include only the rows corresponding to the reference year.
-        Args:
-            simulation_df (pd.DataFrame): The DataFrame containing the simulation output data.
-                It must have a 'time_period' column.
-        Returns:
-            pd.DataFrame: A filtered DataFrame containing only the rows for the reference year.
-        """
-
-        simulation_df_filtered = simulation_df.copy()
-
-        # Add a year column to the simulation data
-        simulation_df_filtered['year'] = simulation_df_filtered['time_period'] + self.init_year
-
-        # Check if ref_year is present in the simulation data
-        if self.ref_year not in simulation_df_filtered['year'].unique():
-            raise ValueError(f"The reference year {self.ref_year} is not present in the simulation data. Please increase your range of simulated years.")
-
-        # Filter the simulation data to the reference year
-        simulation_df_filtered = simulation_df_filtered[simulation_df_filtered['year'] == self.ref_year]
- 
-        return simulation_df_filtered
-    
-    def edgar_data_etl(self, file_path):
-       
-        # Load Edgar data
-        edgar_df = pd.read_csv(file_path, encoding='latin1')
-
-        # Filter Edgar data to the region of interest
-        edgar_df = edgar_df[edgar_df['Code'] == self.iso_alpha_3].reset_index(drop=True)
-
-        # Create Edgar_Class column by combining Subsector and Gas columns
-        edgar_df['Edgar_Class'] = edgar_df['CSC Subsector'] + ':' + edgar_df['Gas']
-
-        # Specify the id_vars (columns to keep) and value_vars (columns to unpivot)
-        
-        id_vars = ['Edgar_Class']
-        value_vars = [str(self.ref_year)]
-
-        # Melt the DataFrame
-        edgar_df_long = edgar_df.melt(id_vars=id_vars, value_vars=value_vars, 
-                        var_name='Year', value_name='Edgar_Values')
-
-        # Convert the 'year' column to integer type
-        edgar_df_long['Year'] = edgar_df_long['Year'].astype(int)
-        
-        return edgar_df_long
-    
-    def load_emission_targets(self, file_path):
-
-        # Load emissions target df
-        targets_df = pd.read_csv(file_path)
-
-        # Filter the targets_df to relevant columns
-        targets_df = targets_df[['Subsector', 'Gas', 'Edgar_Class', 'Year', self.iso_alpha_3]]
-
-        # Rename the iso_alpha_3 column to 'Edgar_Values'
-        targets_df.rename(columns={self.iso_alpha_3: 'Edgar_Values'}, inplace=True)
-
-        return targets_df
-
-    
-    def calculate_ssp_emission_totals(self, simulation_df, mapping_df):
-        """
-        Calculate the total emissions for each subsector based on the provided simulation data.
-        This function takes a simulation DataFrame and a mapping DataFrame, and calculates the total
-        emissions for each subsector defined in the mapping DataFrame. The results are stored in a new
-        column 'Simulation_Values' in the mapping DataFrame.
-        Args:
-            simulation_df (pd.DataFrame): DataFrame containing the simulation data with various emission variables.
-            mapping_df (pd.DataFrame): DataFrame containing the mapping of subsectors to emission variables.
-        Returns:
-            pd.DataFrame: Updated mapping DataFrame with a new column 'Simulation_Values' containing the total emissions
-                          for each subsector.
-        Notes:
-            - The 'Vars' column in the mapping DataFrame should contain colon-separated variable names.
-            - If any variables listed in the 'Vars' column are not present in the simulation DataFrame, they will be reported.
-        """
-        
-        # Create detailed report df from mapping df
-        detailed_report_draft_df = mapping_df.copy()
-        
-        # Add a new column to store total emissions
-        detailed_report_draft_df['Simulation_Values'] = 0  # Initialize with zeros
-
-        # Create a set of all column names in simulation_df for quick lookup
-        simulation_df_cols = set(simulation_df.columns)
-
-        # Create a set to store all missing variable names
-        missing_variables = set()
-
-        # Iterate through each row in detailed_report_draft_df
-        for index, row in detailed_report_draft_df.iterrows():
-            vars_list = row['Vars'].split(':')  # Split Vars column into variable names
-
-            # Check which variable names are missing in simulation_df
-            missing_in_row = [var for var in vars_list if var not in simulation_df_cols]
-            missing_variables.update(missing_in_row)  # Add missing variables to the set
-
-            # Filter the columns in simulation_df that match the variable names
-            matching_columns = [col for col in vars_list if col in simulation_df_cols]
-
-            if matching_columns:
-                # Sum the matching columns across all rows in simulation_df
-                subsector_total_emissions = simulation_df[matching_columns].sum().sum()
-            else:
-                subsector_total_emissions = 0  # No matching columns found
-
-            # Update the simulation_values column in detailed_report_draft_df
-            detailed_report_draft_df.at[index, 'Simulation_Values'] = subsector_total_emissions
-
-        # Print missing variable names, if any
-        if missing_variables:
-            # print("The following variables from Vars are not present in simulation_df:")
-            # for var in missing_variables:
-            #     print(var)
-            self.model_failed_flag = True
-        else:
-            self.model_failed_flag = False
-            # print("All variables from Vars are present in simulation_df.")
-
-        # Returns the updated detailed_report_draft_df
-        return detailed_report_draft_df
-    
-    def calculate_difference(self, diff_report_draft_df):
-        """
-        Calculate the difference and squared difference between simulation values and Edgar values.
-
-        Args:
-            diff_report_draft_df (pd.DataFrame): DataFrame containing 'Simulation_Values' and 'Edgar_Values' columns.
-
-        Returns:
-            pd.DataFrame: DataFrame with additional columns 'diff' and 'squared_diff' representing the relative difference
-                          and squared difference between 'Simulation_Values' and 'Edgar_Values', respectively.
-        """
-
-        df = diff_report_draft_df.copy()
-        df['diff'] = (df['Simulation_Values'] - df['Edgar_Values']) / df['Edgar_Values']
-        df['squared_diff'] = (df['Edgar_Values'] - df['Simulation_Values']) ** 2
-        return df
-    
-    
-    def generate_detailed_diff_report(self, detailed_report_draft_df, edgar_df):
-        """
-        Generates a detailed difference report by comparing simulation values with Edgar values.
-        Args:
-            detailed_report_draft_df (pd.DataFrame): DataFrame containing the draft detailed report with simulation values.
-            edgar_df (pd.DataFrame): DataFrame containing the Edgar values for comparison.
-        Returns:
-            pd.DataFrame: DataFrame containing the year, subsector, Edgar class, simulation values, Edgar values, and the calculated difference.
-        """
-
-        detailed_diff_report = detailed_report_draft_df.copy()
-
-        # Group by Subsector and Edgar_Class and aggregate the Simulation_Values to match Edgar_Values format
-        detailed_diff_report_agg = detailed_diff_report.groupby(['Subsector', 'Gas', 'Edgar_Class'])['Simulation_Values'].sum().reset_index()
-
-        # Merge the aggregated DataFrame with the Edgar data
-        detailed_diff_report_merge = pd.merge(detailed_diff_report_agg, edgar_df, how='left', on=['Subsector', 'Gas', 'Edgar_Class'])
-
-        # Calculate the difference between Simulation_Values and Edgar_Values
-        detailed_diff_report_merge['diff'] = (detailed_diff_report_merge['Simulation_Values'] - detailed_diff_report_merge['Edgar_Values']) / detailed_diff_report_merge['Edgar_Values']
-
-        # Reset Year column to ref year to avoid NaN values
-        detailed_diff_report_merge['Year'] = self.ref_year
-
-        detailed_diff_report_complete = detailed_diff_report_merge[['Year', 'Subsector', 'Gas', 'Edgar_Class', 'Simulation_Values', 'Edgar_Values', 'diff']]
-        
-        return detailed_diff_report_complete
-    
-    def generate_subsector_diff_report(self, detailed_diff_report_complete):
-        """
-        Generates a subsector difference report by comparing simulation values with Edgar values.
-        Args:
-            detailed_diff_report_complete (pd.DataFrame): DataFrame containing detailed difference report with columns 
-                                                          'Subsector', 'Simulation_Values', and 'Edgar_Values'.
-        Returns:
-            pd.DataFrame: A DataFrame containing the subsector difference report with columns 'Year', 'Subsector', 
-                          'Simulation_Values', 'Edgar_Values', and 'diff'. The 'diff' column represents the difference 
-                          between 'Simulation_Values' and 'Edgar_Values' as a fraction of 'Edgar_Values'.
-        """
-        
-        # Group by Subsector and calculate the sum of the Simulation_Values and Edgar_Values
-        subsector_diff_report = detailed_diff_report_complete.groupby('Subsector')[['Simulation_Values', 'Edgar_Values']].sum().reset_index()
-
-        # Calculate the difference between Simulation_Values and Edgar_Values
-        subsector_diff_report['diff'] = (subsector_diff_report['Simulation_Values'] - subsector_diff_report['Edgar_Values']) / subsector_diff_report['Edgar_Values']
-
-        # Reset Year column to ref year to avoid NaN values
-        subsector_diff_report['Year'] = self.ref_year
-
-        # Reorder columns
-        subsector_diff_report = subsector_diff_report[['Year', 'Subsector', 'Simulation_Values', 'Edgar_Values', 'diff']] 
-
-        return subsector_diff_report
-    
-    def calculate_weights(self, detailed_diff_report_complete):
-        """
-        Calculate weights based on the absolute values of 'Edgar_Values' column.
-
-        Parameters:
-        detailed_diff_report_complete (pd.DataFrame): DataFrame containing the 'Edgar_Values' column.
-
-        Returns:
-        pd.DataFrame: DataFrame with an additional 'Weights' column where each weight is calculated as the 
-                      absolute value of 'Edgar_Values' divided by the sum of absolute values of 'Edgar_Values'.
-        """
-        df = detailed_diff_report_complete.copy()
-        df['Weights'] = df['Edgar_Values'].abs() / df['Edgar_Values'].abs().sum()
-        return df
-    
-    def run_report_generator(self, simulation_df, emission_targets_path, mapping_table_path):
-        """
-        Generates and saves detailed and subsector difference reports based on the provided simulation data.
-        Args:
-            simulation_df (pd.DataFrame): DataFrame containing the simulation output data.
-        Returns:
-            tuple: A tuple containing:
-                - detailed_diff_report_complete (pd.DataFrame): DataFrame with the complete detailed difference report.
-                - subsector_diff_report (pd.DataFrame): DataFrame with the subsector difference report.
-        Steps:
-            1. Load the mapping table.
-            2. Filter the simulation output data.
-            3. Perform ETL on EDGAR data.
-            4. Calculate SSP emission totals.
-            5. Generate the detailed difference report.
-            6. Generate the subsector difference report.
-            7. Save the reports to CSV files.
-        """
-
-        mapping_df = self.load_mapping_table(file_path=mapping_table_path)
-        simulation_df_filtered = self.load_simulation_output_data(simulation_df)
-        edgar_df = self.load_emission_targets(file_path=emission_targets_path)
-        detailed_report_draft_df = self.calculate_ssp_emission_totals(simulation_df_filtered, mapping_df)
-        detailed_diff_report_complete = self.generate_detailed_diff_report(detailed_report_draft_df, edgar_df)
-        subsector_diff_report = self.generate_subsector_diff_report(detailed_diff_report_complete)
-
-        detailed_diff_report_complete.to_csv(os.path.join(self.sectoral_report_dir_path, f'detailed_diff_report_{self.report_type}.csv'), index=False)
-        subsector_diff_report.to_csv(os.path.join(self.sectoral_report_dir_path, f'subsector_diff_report_{self.report_type}.csv'), index=False)
-
-        return detailed_diff_report_complete, subsector_diff_report
-
-
-class NonEnergySectoralDiffReport(SectoralDiffReport):
-    """
-    A class to generate a sectoral difference report for non-energy sectors.
-    Attributes:
-        non_energy_subsectors (list): A list of non-energy subsectors.
-        report_type (str): The type of report, set to 'non-energy-sectors'.
-    Methods:
-        __init__(sectoral_report_dir_path, iso_alpha_3, init_year, ref_year=2015):
-            Initializes the NonEnergySectoralDiffReport with the given parameters.
-        calculate_ssp_emission_totals(simulation_df, mapping_df):
-            Calculates the SSP emission totals for non-energy subsectors based on the provided simulation and mapping dataframes.
-            Args:
-                simulation_df (pd.DataFrame): DataFrame containing simulation data.
-                mapping_df (pd.DataFrame): DataFrame containing mapping data.
-            Returns:
-                pd.DataFrame: Updated DataFrame with total emissions for non-energy subsectors.
-    """
-
-    def __init__(self, sectoral_report_dir_path, iso_alpha_3, init_year, ref_year=2015):
-        """
-        Initializes the utility class for handling sectoral reports.
-
-        Args:
-            sectoral_report_dir_path (str): The directory path where sectoral reports are stored.
-            iso_alpha_3 (str): The ISO Alpha-3 code representing the country.
-            init_year (int): The initial year for the report data.
-            ref_year (int, optional): The reference year for the report data. Defaults to 2015.
-
-        Attributes:
-            non_energy_subsectors (list): A list of non-energy subsectors.
-            report_type (str): The type of report, set to 'non-energy-sectors'.
-        """
-        super().__init__(sectoral_report_dir_path, iso_alpha_3, init_year, ref_year)
-        self.non_energy_subsectors = ['agrc', 'frst', 'ippu', 'lndu', 'lsmm', 'lvst', 'soil', 'trww', 'waso']
-        self.report_type = 'non-energy-sectors'
-
-    def calculate_ssp_emission_totals(self, simulation_df, mapping_df):
-        """
-        Calculate the total emissions for non-energy subsectors based on the provided simulation data.
-        This method processes the `mapping_df` to filter out non-energy subsectors and then calculates
-        the total emissions for each subsector by summing the relevant columns in `simulation_df`.
-        It also identifies and reports any variables listed in the `Vars` column of `mapping_df` that
-        are not present in `simulation_df`.
-        Parameters:
-        - simulation_df (pd.DataFrame): DataFrame containing the simulation data with various emission variables.
-        - mapping_df (pd.DataFrame): DataFrame containing the mapping information, including subsectors and variable names.
-        Returns:
-        - pd.DataFrame: Updated DataFrame with total emissions for each non-energy subsector in the `Simulation_Values` column.
-        """
-        
-        # Create detailed report df from mapping df
-        detailed_report_draft_df = mapping_df.copy()
-
-        # Filter the detailed_report_draft_df to non-energy subsectors
-        detailed_report_draft_df = detailed_report_draft_df[detailed_report_draft_df['Subsector'].isin(self.non_energy_subsectors)]
-
-        # Add a new column to store total emissions
-        detailed_report_draft_df['Simulation_Values'] = 0  # Initialize with zeros
-
-        # Create a set of all column names in simulation_df for quick lookup
-        simulation_df_cols = set(simulation_df.columns)
-
-        # Create a set to store all missing variable names
-        missing_variables = set()
-
-        # Iterate through each row in detailed_report_draft_df
-        for index, row in detailed_report_draft_df.iterrows():
-            vars_list = row['Vars'].split(':')  # Split Vars column into variable names
-
-            # Check which variable names are missing in simulation_df
-            missing_in_row = [var for var in vars_list if var not in simulation_df_cols]
-            missing_variables.update(missing_in_row)  # Add missing variables to the set
-
-            # Filter the columns in simulation_df that match the variable names
-            matching_columns = [col for col in vars_list if col in simulation_df_cols]
-
-            if matching_columns:
-                # Sum the matching columns across all rows in simulation_df
-                subsector_total_emissions = simulation_df[matching_columns].sum().sum()
-            else:
-                subsector_total_emissions = 0  # No matching columns found
-
-            # Update the simulation_values column in detailed_report_draft_df
-            detailed_report_draft_df.at[index, 'Simulation_Values'] = subsector_total_emissions
-
-        # Print missing variable names, if any
-        if missing_variables:
-            # print("The following variables from Vars are not present in simulation_df:")
-            # for var in missing_variables:
-            #     print(var)
-            self.model_failed_flag = True
-        else:
-            # print("All variables from Vars are present in simulation_df.")
-            self.model_failed_flag = False
-            
-        # Returns the updated detailed_report_draft_df
-        return detailed_report_draft_df
-
-
 class ErrorFunctions:
     """
     A class containing various error calculation functions for comparing simulation values with reference values.
@@ -725,7 +316,7 @@ class ErrorFunctions:
         return mse_value
     
     
-    def wmse(self, dataframe):
+    def wmse(self, dataframe, weight_type='norm_weight'):
         """
         Computes the weighted Mean Squared Error (MSE) based on the `diff` column as weights.
 
@@ -736,7 +327,7 @@ class ErrorFunctions:
             float: Weighted MSE value.
         """
         # Compute WMSE
-        wmse = np.sum(dataframe['Weights'] * dataframe['squared_diff']) / np.sum(dataframe['Weights'])
+        wmse = np.sum(dataframe[weight_type] * dataframe['squared_diff']) / np.sum(dataframe[weight_type])
         return wmse
     
 
@@ -756,7 +347,7 @@ class ErrorFunctions:
         return rmse_value
     
     
-    def calculate_error(self, error_type, dataframe):
+    def calculate_error(self, error_type, dataframe, weight_type='norm_weight'):
         """
         Calculates the error based on the specified error type.
 
@@ -766,10 +357,10 @@ class ErrorFunctions:
         Returns:
             float: Error value.
         """
-        if error_type == 'weighted_mse':
+        if error_type == 'wmse':
             return self.wmse(dataframe)
         elif error_type == 'rmse':
-            return self.rmse(dataframe)
+            return self.rmse(dataframe, weight_type=weight_type)
         elif error_type == 'mse':
             return self.mse(dataframe)
         else:

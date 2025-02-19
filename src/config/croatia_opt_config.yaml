@@ -5,6 +5,7 @@ input_rows: 10
 normalization_flag: false
 detailed_diff_report_flag: true
 energy_model_flag: false
-error_type: rmse
+error_type: wmse
+weight_type: norm_weight
 swarmsize: 3 
 maxiter: 2

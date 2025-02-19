@@ -4,10 +4,26 @@ import numpy as np
 
 class DiffReportUtils:
     
-    def __init__(self, iso_alpha_3, ref_year, ssp_edgar_cw_path, sim_init_year=2015, comparison_year=2015):
+    def __init__(self, iso_alpha_3, ssp_edgar_cw_path, sim_init_year=2015, comparison_year=2015):
+        """
+        Initializes the DiffReports class with the given parameters.
+
+        Args:
+            iso_alpha_3 (str): The ISO 3166-1 alpha-3 region code.
+            ssp_edgar_cw_path (str): The file path to the SSP EDGAR CW csv file.
+            sim_init_year (int, optional): The initial year for the simulation. Defaults to 2015.
+            comparison_year (int, optional): The year for comparison between SSP and EDGAR. Defaults to 2015.
+
+        Attributes:
+            ssp_edgar_cw_path (str): Stores the file path to the SSP EDGAR CW csv file.
+            iso_alpha_3 (str): Stores the ISO 3166-1 alpha-3 region code.
+            epsilon (float): A small constant (1e-6) to prevent numerical issues.
+            model_failed_flag (bool): A flag indicating whether the model has failed. Defaults to False.
+            sim_init_year (int): Stores the initial year for the simulation.
+            comparison_year (int): Stores the year for comparison between SSP and EDGAR.
+        """
         self.ssp_edgar_cw_path = ssp_edgar_cw_path
         self.iso_alpha_3 = iso_alpha_3
-        self.ref_year = ref_year
         self.epsilon = 1e-6
         self.model_failed_flag = False
         self.sim_init_year = sim_init_year
@@ -89,8 +105,8 @@ class DiffReportUtils:
             pd.DataFrame: A DataFrame containing the processed EDGAR emissions data with the following columns:
                 - iso_alpha_3: ISO alpha-3 region code.
                 - edgar_class: Combined class of CSC Subsector and Gas.
-                - edgar_emission: Emission value for the reference year.
-                - year: The reference year.
+                - edgar_emission: Emission value for the comparison year.
+                - year: The comparison year.
                 - weight columns: Additional columns calculated by the `calculate_weights` method.
                 - edgar_emission_epsilon: Adjusted emission value with epsilon added.
         """
@@ -105,19 +121,19 @@ class DiffReportUtils:
         edgar_region_df['edgar_class'] = edgar_region_df['CSC Subsector'] + ':' + edgar_region_df['Gas']
 
         # Keep relevant columns
-        edgar_region_df = edgar_region_df[['Code', 'edgar_class', str(self.ref_year)]]
+        edgar_region_df = edgar_region_df[['Code', 'edgar_class', str(self.comparison_year)]]
 
         # Rename columns
-        edgar_region_df.rename(columns={str(self.ref_year): 'edgar_emission', 'Code': 'iso_alpha_3'}, inplace=True)
+        edgar_region_df.rename(columns={str(self.comparison_year): 'edgar_emission', 'Code': 'iso_alpha_3'}, inplace=True)
 
         # Add a year column
-        edgar_region_df['year'] = int(self.ref_year)
+        edgar_region_df['year'] = int(self.comparison_year)
 
-        # Add weight columns
-        edgar_region_df = self.calculate_weights(edgar_region_df)
+        # Add weight columns NOTE: This will be uncommented when we have the complete mapping of Edgar classes
+        # edgar_region_df = self.calculate_weights(edgar_region_df)
 
-        # Create a edgar_emission_epsilon column
-        edgar_region_df['edgar_emission_epsilon'] = edgar_region_df['edgar_emission'] + self.epsilon
+        # Create a edgar_emission_epsilon column NOTE: This will be uncommented when we have the complete mapping of Edgar classes
+        # edgar_region_df['edgar_emission_epsilon'] = edgar_region_df['edgar_emission'] + self.epsilon
         
         return edgar_region_df
     
@@ -191,20 +207,94 @@ class DiffReportUtils:
 
         return ssp_emissions_report
 
+    
+    #NOTE: This method is a temporal fix
+    def adjust_duplicated_edgar_classes(self, df_ssp_edgar):
+        """
+        Adjusts duplicated EDGAR classes in the given DataFrame by redistributing the emission values.
+        This method identifies rows in the DataFrame that have duplicated 'edgar_class' values. For each duplicated class,
+        it calculates a new emission value by dividing the original emission value by the number of duplicated rows. It then
+        updates the 'edgar_emission' values of the duplicated rows with this new emission value.
+        Parameters:
+            df_ssp_edgar (pd.DataFrame): DataFrame containing the EDGAR data with 'edgar_class' and 'edgar_emission' columns.
+            Returns:
+            pd.DataFrame: A new DataFrame with adjusted 'edgar_emission' values for duplicated 'edgar_class' entries.
+        """
+
+        df = df_ssp_edgar.copy()
+
+        # Get uplicated Edgar classes
+        duplicated_classes = list(df[df.duplicated(subset=['edgar_class'], keep=False)]['edgar_class'].unique())
+
+        # Iterate through duplicated classes
+        for edgar_class in duplicated_classes:
+            # Get duplicated rows
+            duplicated_rows = df[df['edgar_class'] == edgar_class]
+            
+            # The duplicated rows have the same value in the edgar_emission column so we get the first value and divide it by the number of duplicated rows
+            new_emission = duplicated_rows['edgar_emission'].iloc[0] / len(duplicated_rows)
+
+            print(f"Updating {edgar_class} with {new_emission}")
+
+            # Update the edgar_emission values of the duplicated rows with new_emission value
+            df.loc[df['edgar_class'] == edgar_class, 'edgar_emission'] = new_emission
+        
+        return df
+    
+    def calculate_ssp_edgar_deviation(self, df_ssp_edgar):
+        """
+        Calculate the deviation and squared deviation between SSP and EDGAR emissions.
+        This function takes a DataFrame containing SSP and EDGAR emissions data, and calculates
+        the deviation and squared deviation between the SSP emissions and EDGAR emissions epsilon.
+        Parameters:
+        df_ssp_edgar (pd.DataFrame): DataFrame containing 'ssp_emission' and 'edgar_emission_epsilon' columns.
+        Returns:
+        pd.DataFrame: A copy of the input DataFrame with additional columns:
+            - 'diff': The deviation between 'ssp_emission' and 'edgar_emission_epsilon'.
+            - 'squared_diff': The squared deviation between 'ssp_emission' and 'edgar_emission_epsilon'.
+        """
+
+        df = df_ssp_edgar.copy()
+        df['diff'] = (df['ssp_emission'] - df['edgar_emission_epsilon']) / df['edgar_emission_epsilon']
+        df['squared_diff'] = (df['edgar_emission_epsilon'] - df['ssp_emission']) ** 2
+        return df
+
+    
     def merge_ssp_with_edgar(self, ssp_emissions_report, edgar_emissions_df):
+        """
+        Merges the SSP emissions report with the EDGAR emissions dataframe, adjusts for duplicated EDGAR classes,
+        calculates temporary epsilon-adjusted emissions, weights, and deviations, and handles missing data.
+        Parameters:
+            ssp_emissions_report (pd.DataFrame): The SSP emissions report dataframe.
+            edgar_emissions_df (pd.DataFrame): The EDGAR emissions dataframe.
+        Returns:
+            pd.DataFrame: The merged dataframe with calculated deviations and handled missing data.
+        """
         
         df = ssp_emissions_report.copy()
 
         # Merge the ssp_emissions_report with edgar_emissions_df
         df_merged = pd.merge(df, edgar_emissions_df, how='left', on='edgar_class')
 
-        # return df_merged
+        #NOTE: This is a temporal fix until we have a complete mapping of Edgar classes
+        df_merged = self.adjust_duplicated_edgar_classes(df_merged)
 
-        #TODO: Distribute the edgar_emission in ippu hfc and ag-ch4 proportionally.
-        #TODO: Calculate diff and squared diffs
-        #TODO: Reset year to ref year to avoid NaNs
+        #NOTE: We create edgar_emission_epsilon here temporarily until we have the complete mapping of Edgar classes
+        df_merged['edgar_emission_epsilon'] = df_merged['edgar_emission'] + self.epsilon
 
-        return None
+        #NOTE: We calculate weights here temporarily until we have the complete mapping of Edgar classes
+        df_merged = self.calculate_weights(df_merged)
+
+        #Calculate diff and squared diffs
+        df_merged = self.calculate_ssp_edgar_deviation(df_merged)
+    
+        #Reset year to ref year to avoid NaNs
+        df_merged['year'] = self.comparison_year
+
+        # Set missing data to -999
+        df_merged.fillna(-999, inplace=True)
+
+        return df_merged
     
     # def generate_subsector_diff_report(self, detailed_diff_report_complete):
     #     """

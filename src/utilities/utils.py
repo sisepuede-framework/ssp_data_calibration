@@ -235,6 +235,25 @@ class HelperFunctions:
         log_df.to_csv(log_file, mode='a', header=not pd.io.common.file_exists(log_file), index=False)
 
         return None
+    
+    @staticmethod
+    def log_error_msgs(error_msg: str, RUN_OUTPUT_PATH: str, target_region: str, unique_id: str):
+        """
+        Logs the error messages to a text file.
+        Parameters:
+        error_msg (str): The error message to log.
+        OPT_OUTPUT_PATH (str): The output directory path where the text file will be saved.
+        target_region (str): The target region identifier.
+        unique_id (str): A unique identifier for the log entry.
+        Returns:
+        None
+        """
+        
+        log_file = os.path.join(RUN_OUTPUT_PATH, f"error_msg_{target_region}_{unique_id}.txt")
+        with open(log_file, 'a') as file:
+            file.write(f"{error_msg}\n")
+        
+        return None
        
 
 class SSPModelForCalibration:

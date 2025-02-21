@@ -375,7 +375,7 @@ class DiffReportUtils:
     
     
     
-    def run_report_generator(self, edgar_emission_df, ssp_out_df):
+    def run_report_generator(self, edgar_emission_df, ssp_out_df, subsector_to_calibrate=None):
         """
         Run the report generator to generate a sectoral emissions report.
         This method generates a sectoral emissions report by merging the SSP emissions report with the EDGAR emissions data,
@@ -397,23 +397,23 @@ class DiffReportUtils:
         # Merge the SSP emissions report with the EDGAR emissions data
         merged_df = self.merge_ssp_with_edgar(ssp_emissions_report, edgar_emission_df)
 
-        # Set the sectoral_emission_report attribute to the generated report
-        self.sectoral_emission_report = merged_df.copy()
-
-
-        #NOTE: For debug Save the report to a CSV file
-        # merged_df.to_csv(os.path.join(self.sectoral_report_dir_path, f"detailed_emission_report_{self.iso_alpha_3}.csv"), index=False)
-
         # Generate subsector emission report
         subsector_diff_report = self.generate_subsector_diff_report(merged_df)
 
+        # Filter the merged_df and subsector_diff_report for the subsector to calibrate
+
+        if subsector_to_calibrate is not None:
+            merged_df = merged_df[merged_df['subsector'] == subsector_to_calibrate]
+            subsector_diff_report = subsector_diff_report[subsector_diff_report['subsector'] == subsector_to_calibrate]
+
+        # Set the sectoral_emission_report attribute to the generated report
+        self.sectoral_emission_report = merged_df.copy()
+       
         # Set the subsector_emission_report attribute to the generated report
         self.subsector_emission_report = subsector_diff_report.copy()
         
         
-        #NOTE: For debug Save the subsector difference report to a CSV file
-        # subsector_diff_report.to_csv(os.path.join(self.sectoral_report_dir_path, f"subsector_emission_report_{self.iso_alpha_3}.csv"), index=False)
-
+        
         
         return None
     

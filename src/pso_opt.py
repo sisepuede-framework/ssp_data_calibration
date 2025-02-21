@@ -59,6 +59,7 @@ stressed_variables_report_version = param_dict['stressed_variables_report_versio
 normalization_flag = param_dict['normalization_flag']
 detailed_diff_report_flag = param_dict['detailed_diff_report_flag']
 energy_model_flag = param_dict['energy_model_flag']
+subsector_to_calibrate = param_dict['subsector_to_calibrate']
 error_type = param_dict['error_type']
 weight_type = param_dict['weight_type']
 unique_id = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -71,6 +72,7 @@ logging.info(f"Input rows: {input_rows}")
 logging.info(f"Stressed variables report version: {stressed_variables_report_version}")
 logging.info(f"Normalization flag: {normalization_flag}")
 logging.info(f"Energy model flag: {energy_model_flag}")
+logging.info(f"Subsector to calibrate: {subsector_to_calibrate}")
 logging.info(f"Error type: {error_type}")
 logging.info(f"Weight type: {weight_type}")
 logging.info(f"Unique ID: {unique_id}")
@@ -229,7 +231,7 @@ def objective_function(x):
     
     else:
         # Generate diff reports to calculate Error
-        dru.run_report_generator(edgar_emission_df=edgar_df, ssp_out_df=sim_output_df)
+        dru.run_report_generator(edgar_emission_df=edgar_df, ssp_out_df=sim_output_df, subsector_to_calibrate=subsector_to_calibrate)
 
         
         # Checks if the model failed in any subsector

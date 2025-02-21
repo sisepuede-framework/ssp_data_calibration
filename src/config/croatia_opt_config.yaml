@@ -5,6 +5,7 @@ input_rows: 10
 normalization_flag: false
 detailed_diff_report_flag: true
 energy_model_flag: false
+subsector_to_calibrate:
 error_type: wmse
 weight_type: norm_weight
 swarmsize: 3 

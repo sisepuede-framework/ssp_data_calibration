@@ -233,8 +233,33 @@ class DiffReportUtils:
         ssp_emissions_report.drop(columns=['vars', 'edgar_subsector', 'edgar_sector'], inplace=True)
 
         return ssp_emissions_report
-
     
+    def group_ssp_emissions_report_vars(self, ssp_emissions_report):
+        """
+        Groups SSP emissions report variables by subsector and EDGAR class.
+
+        This function takes a DataFrame containing SSP emissions report data, renames specific subsectors,
+        and then groups the data by subsector and EDGAR class, summing the SSP emissions for each group.
+
+        Parameters:
+        ssp_emissions_report (pd.DataFrame): A DataFrame containing SSP emissions report data with columns 
+                                             'edgar_class', 'subsector', and 'ssp_emission'.
+
+        Returns:
+        pd.DataFrame: A DataFrame grouped by 'subsector' and 'edgar_class' with summed 'ssp_emission' values.
+        """
+
+        df = ssp_emissions_report.copy()
+
+        # Rename the subsectors to group
+        df.loc[df['edgar_class'] == "AG - Livestock:CH4", "subsector"] = "lvst-lsmm"
+
+        # Group by subsector and edgar_class
+        df = df.groupby(['subsector', 'edgar_class'], as_index=False)['ssp_emission'].sum()
+
+        return df
+
+
     #NOTE: This method is a temporal fix
     def adjust_duplicated_edgar_classes(self, df_ssp_edgar):
         """
@@ -304,7 +329,8 @@ class DiffReportUtils:
         df_merged = pd.merge(df, edgar_emissions_df, how='left', on='edgar_class')
 
         #NOTE: This is a temporal fix until we have a complete mapping of Edgar classes
-        df_merged = self.adjust_duplicated_edgar_classes(df_merged)
+        #NOTE: Commented out since we are now groupping the ssp subsectors to match edgar class
+        #df_merged = self.adjust_duplicated_edgar_classes(df_merged)
 
         #NOTE: We create edgar_emission_epsilon here temporarily until we have the complete mapping of Edgar classes
         df_merged['edgar_emission_epsilon'] = df_merged['edgar_emission'] + self.epsilon
@@ -365,6 +391,9 @@ class DiffReportUtils:
         # Generate the SSP emissions report
         ssp_emissions_report = self.generate_ssp_emissions_report(ssp_out_df)
 
+        # Group the ssp_emissions_report to match the edgar_emission_df. NOTE: This is a temporal fix
+        ssp_emissions_report = self.group_ssp_emissions_report_vars(ssp_emissions_report)
+
         # Merge the SSP emissions report with the EDGAR emissions data
         merged_df = self.merge_ssp_with_edgar(ssp_emissions_report, edgar_emission_df)
 
@@ -372,8 +401,8 @@ class DiffReportUtils:
         self.sectoral_emission_report = merged_df.copy()
 
 
-        # Save the report to a CSV file
-        merged_df.to_csv(os.path.join(self.sectoral_report_dir_path, f"detailed_emission_report_{self.iso_alpha_3}.csv"), index=False)
+        #NOTE: For debug Save the report to a CSV file
+        # merged_df.to_csv(os.path.join(self.sectoral_report_dir_path, f"detailed_emission_report_{self.iso_alpha_3}.csv"), index=False)
 
         # Generate subsector emission report
         subsector_diff_report = self.generate_subsector_diff_report(merged_df)
@@ -382,8 +411,8 @@ class DiffReportUtils:
         self.subsector_emission_report = subsector_diff_report.copy()
         
         
-        # Save the subsector difference report to a CSV file
-        subsector_diff_report.to_csv(os.path.join(self.sectoral_report_dir_path, f"subsector_emission_report_{self.iso_alpha_3}.csv"), index=False)
+        #NOTE: For debug Save the subsector difference report to a CSV file
+        # subsector_diff_report.to_csv(os.path.join(self.sectoral_report_dir_path, f"subsector_emission_report_{self.iso_alpha_3}.csv"), index=False)
 
         
         return None

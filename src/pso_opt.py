@@ -281,7 +281,7 @@ best_solution, best_value = pso(
 
 
 
-logging.info(f"PSO optimization completed for {target_region} (ISO code: {iso_alpha_3})")
+logging.info(f"PSO optimization completed for {target_region} (run id: {unique_id})")
 # Record the end time
 end_time = time.time()
 elapsed_time = end_time - start_time

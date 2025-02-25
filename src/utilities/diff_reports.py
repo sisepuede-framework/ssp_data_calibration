@@ -397,6 +397,10 @@ class DiffReportUtils:
         # Merge the SSP emissions report with the EDGAR emissions data
         merged_df = self.merge_ssp_with_edgar(ssp_emissions_report, edgar_emission_df)
 
+        # If energy_model_flag is False remove the rows with 'fgtv', 'entc', and 'ccsq' in subsector column
+        if not self.energy_model_flag:
+            merged_df = merged_df[~merged_df['subsector'].isin(['fgtv', 'entc', 'ccsq'])]
+
         # Generate subsector emission report
         subsector_diff_report = self.generate_subsector_diff_report(merged_df)
 
@@ -406,14 +410,12 @@ class DiffReportUtils:
             merged_df = merged_df[merged_df['subsector'] == subsector_to_calibrate]
             subsector_diff_report = subsector_diff_report[subsector_diff_report['subsector'] == subsector_to_calibrate]
 
+        
         # Set the sectoral_emission_report attribute to the generated report
         self.sectoral_emission_report = merged_df.copy()
        
         # Set the subsector_emission_report attribute to the generated report
         self.subsector_emission_report = subsector_diff_report.copy()
-        
-        
-        
         
         return None
     

@@ -302,12 +302,12 @@ class DiffReportUtils:
         df_ssp_edgar (pd.DataFrame): DataFrame containing 'ssp_emission' and 'edgar_emission_epsilon' columns.
         Returns:
         pd.DataFrame: A copy of the input DataFrame with additional columns:
-            - 'diff': The deviation between 'ssp_emission' and 'edgar_emission_epsilon'.
+            - 'rel_error': The deviation between 'ssp_emission' and 'edgar_emission_epsilon'.
             - 'squared_diff': The squared deviation between 'ssp_emission' and 'edgar_emission_epsilon'.
         """
 
         df = df_ssp_edgar.copy()
-        df['diff'] = (df['ssp_emission'] - df['edgar_emission_epsilon']) / df['edgar_emission_epsilon']
+        df['rel_error'] = (df['ssp_emission'] - df['edgar_emission_epsilon']) / df['edgar_emission_epsilon']
         df['squared_diff'] = (df['edgar_emission_epsilon'] - df['ssp_emission']) ** 2
         return df
 
@@ -335,10 +335,7 @@ class DiffReportUtils:
         #NOTE: We create edgar_emission_epsilon here temporarily until we have the complete mapping of Edgar classes
         df_merged['edgar_emission_epsilon'] = df_merged['edgar_emission'] + self.epsilon
 
-        #NOTE: We calculate weights here temporarily until we have the complete mapping of Edgar classes
-        df_merged = self.calculate_weights(df_merged)
-
-        #Calculate diff and squared diffs
+        #Calculate rel_error and squared error
         df_merged = self.calculate_ssp_edgar_deviation(df_merged)
     
         #Reset year to ref year to avoid NaNs
@@ -355,7 +352,7 @@ class DiffReportUtils:
                                                           'Subsector', 'Simulation_Values', and 'Edgar_Values'.
         Returns:
             pd.DataFrame: A DataFrame containing the subsector difference report with columns 'Year', 'Subsector', 
-                          'Simulation_Values', 'Edgar_Values', and 'diff'. The 'diff' column represents the difference 
+                          'Simulation_Values', 'Edgar_Values', and 'rel_error'. The 'rel_error' column represents the difference 
                           between 'Simulation_Values' and 'Edgar_Values' as a fraction of 'Edgar_Values'.
         """
         
@@ -400,6 +397,9 @@ class DiffReportUtils:
         # If energy_model_flag is False remove the rows with 'fgtv', 'entc', and 'ccsq' in subsector column
         if not self.energy_model_flag:
             merged_df = merged_df[~merged_df['subsector'].isin(['fgtv', 'entc', 'ccsq'])]
+
+        # After all filtering we calculate the weights
+        merged_df = self.calculate_weights(merged_df)
 
         # Generate subsector emission report
         subsector_diff_report = self.generate_subsector_diff_report(merged_df)

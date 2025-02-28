@@ -316,6 +316,7 @@ class ErrorFunctions:
         wmse(dataframe: pd.DataFrame) -> float:
         rmse(dataframe: pd.DataFrame) -> float:
         mae(dataframe: pd.DataFrame) -> float:
+        wmape(dataframe: pd.DataFrame) -> float:
         calculate_error(error_type: str, dataframe: pd.DataFrame) -> float:
     """
     
@@ -365,6 +366,20 @@ class ErrorFunctions:
         rmse_value = self.mse(dataframe) ** 0.5
         return rmse_value
     
+    def wmape(self, dataframe):
+        """
+        Computes the weighted Mean Absolute Percentage Error (WMAPE).
+
+        Args:
+            dataframe (pd.DataFrame): DataFrame containing weights and relative errors.
+
+        Returns:
+            float: WMAPE value.
+        """
+
+        # Computer the weighted mean absolute percentage error
+        wmape = np.mean(dataframe['norm_weight'] * dataframe['rel_error'].abs()) * 100
+        return wmape    
     
     def calculate_error(self, error_type, dataframe, weight_type='norm_weight'):
         """
@@ -382,5 +397,9 @@ class ErrorFunctions:
             return self.rmse(dataframe, weight_type=weight_type)
         elif error_type == 'mse':
             return self.mse(dataframe)
+        elif error_type == 'wmape':
+            return self.wmape(dataframe)
         else:
             raise ValueError(f"Error type '{error_type}' is not supported.")
+    
+    

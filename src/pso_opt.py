@@ -286,5 +286,10 @@ logging.info(f"PSO optimization completed for {target_region} (run id: {unique_i
 end_time = time.time()
 elapsed_time = end_time - start_time
 logging.info(f"Elapsed time: {elapsed_time:.2f} seconds")
-# logging.info(f"Best scaling vector: {best_solution}")
+logging.info(f"Best scaling vector: {best_solution}")
 logging.info(f"Best error: {best_value}")
+
+# Save scaling vector
+scaling_vector_df = pd.DataFrame(best_solution, columns=['scaling_factor'])
+scaling_vector_df.to_csv(build_path([RUN_OUTPUT_DIR, f"scaling_vector_{unique_id}.csv"]), index=False)
+

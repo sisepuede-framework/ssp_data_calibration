@@ -366,6 +366,22 @@ class ErrorFunctions:
         rmse_value = self.mse(dataframe) ** 0.5
         return rmse_value
     
+    def mape(self, dataframe):
+        """
+        Computes the Mean Absolute Percentage Error (MAPE).
+
+        Args:
+            dataframe (pd.DataFrame): DataFrame containing relative errors.
+
+        Returns:
+            float: MAPE value.
+        """
+
+        # Compute MAPE
+        mape = np.mean(dataframe['rel_error'].abs()) * 100
+        return mape
+    
+    
     def wmape(self, dataframe):
         """
         Computes the weighted Mean Absolute Percentage Error (WMAPE).
@@ -397,6 +413,8 @@ class ErrorFunctions:
             return self.rmse(dataframe, weight_type=weight_type)
         elif error_type == 'mse':
             return self.mse(dataframe)
+        elif error_type == 'mape':
+            return self.mape(dataframe)
         elif error_type == 'wmape':
             return self.wmape(dataframe)
         else:

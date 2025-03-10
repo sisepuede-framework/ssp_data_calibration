@@ -66,6 +66,7 @@ unique_id = datetime.now().strftime("%Y%m%d%H%M%S")
 swarm_size = param_dict['swarmsize']
 maxiter = param_dict['maxiter']
 input_rows = param_dict['input_rows']
+ssp_edgar_cw_file_name = param_dict['ssp_edgar_cw']
 
 logging.info(f"Starting optimization for {target_region} (ISO code: {iso_alpha_3})")
 logging.info(f"Input rows: {input_rows}")
@@ -79,6 +80,7 @@ logging.info(f"Unique ID: {unique_id}")
 logging.info(f"Swarm size: {swarm_size}")
 logging.info(f"Max iterations: {maxiter}")
 logging.info(f"Detailed diff report flag: {detailed_diff_report_flag}")
+logging.info(f"SSP-EDGAR crosswalk file: {ssp_edgar_cw_file_name}")
 
 # Make sure the output directory exists
 os.makedirs(OPT_OUTPUT_PATH, exist_ok=True)
@@ -159,7 +161,7 @@ for group_id in group_ids:
 ef = ErrorFunctions()
 
 #  Initialize the DiffReportUtils class
-edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'edgar_ssp_cw.csv'])
+edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, ssp_edgar_cw_file_name])
 dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag)
 
 # Generate EDGAR df

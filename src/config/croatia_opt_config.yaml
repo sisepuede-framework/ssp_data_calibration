@@ -8,5 +8,6 @@ energy_model_flag: false
 subsector_to_calibrate:
 error_type: wmse
 weight_type: norm_weight
+ssp_edgar_cw: edgar_ssp_cw.csv
 swarmsize: 3 
 maxiter: 2

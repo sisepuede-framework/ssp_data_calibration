@@ -331,17 +331,42 @@ class DiffReportUtils:
         #NOTE: This is a temporal fix until we have a complete mapping of Edgar classes
         #NOTE: Commented out since we are now groupping the ssp subsectors to match edgar class
         #df_merged = self.adjust_duplicated_edgar_classes(df_merged)
-
-        #NOTE: We create edgar_emission_epsilon here temporarily until we have the complete mapping of Edgar classes
-        df_merged['edgar_emission_epsilon'] = df_merged['edgar_emission'] + self.epsilon
-
-        #Calculate rel_error and squared error
-        df_merged = self.calculate_ssp_edgar_deviation(df_merged)
     
         #Reset year to ref year to avoid NaNs
         df_merged['year'] = self.comparison_year
 
         return df_merged
+    
+    def group_trns_scoe_inen(self, ssp_edgar_df):
+
+        df = ssp_edgar_df.copy()
+
+        # Group the subsectors 'trns', 'inen', and 'scoe', and sum the 'ssp_emission' and 'edgar_emission' columns
+        df_grouped = df[df['subsector'].isin(['trns', 'inen', 'scoe'])].groupby(['subsector', 'iso_alpha_3', 'year'], as_index=False).agg({
+            'ssp_emission': 'sum',
+            'edgar_emission': 'sum'
+        })
+
+        new_edgar_class = {
+            'trns': 'EN - Transportation',
+            'inen': 'EN - Manufacturing/Construction',
+            'scoe': 'EN - Building'
+        }
+
+        # Add the new edgar_class column
+        df_grouped['edgar_class'] = df_grouped['subsector'].map(new_edgar_class)
+
+        # Reorder the columns
+        df_grouped = df_grouped[['subsector', 'edgar_class', 'ssp_emission', 'iso_alpha_3', 'edgar_emission', 'year']]
+
+    
+        # Add the remaining rows that do not belong to the selected subsectors
+        df_other = df[~df['subsector'].isin(['trns', 'inen', 'scoe'])]
+
+        # Concatenate the grouped dataframe with the remaining rows
+        df_final = pd.concat([df_grouped, df_other], ignore_index=True)
+
+        return df_final
     
     
     def generate_subsector_diff_report(self, detailed_diff_report_complete):
@@ -394,9 +419,19 @@ class DiffReportUtils:
         # Merge the SSP emissions report with the EDGAR emissions data
         merged_df = self.merge_ssp_with_edgar(ssp_emissions_report, edgar_emission_df)
 
+        # Aggregate trns, scoe and inen #NOTE: This is in testing phase
+        merged_df = self.group_trns_scoe_inen(merged_df)
+
         # If energy_model_flag is False remove the rows with 'fgtv', 'entc', and 'ccsq' in subsector column
         if not self.energy_model_flag:
             merged_df = merged_df[~merged_df['subsector'].isin(['fgtv', 'entc', 'ccsq'])]
+
+
+        #NOTE: We create edgar_emission_epsilon here temporarily until we have the complete mapping of Edgar classes
+        merged_df['edgar_emission_epsilon'] = merged_df['edgar_emission'] + self.epsilon
+
+        #Calculate rel_error and squared error
+        merged_df = self.calculate_ssp_edgar_deviation(merged_df)
 
         # After all filtering we calculate the weights
         merged_df = self.calculate_weights(merged_df)

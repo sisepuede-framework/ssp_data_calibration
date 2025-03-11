@@ -378,7 +378,7 @@ class ErrorFunctions:
         """
 
         # Compute MAPE
-        mape = np.mean(dataframe['rel_error'].abs()) * 100
+        mape = np.mean(dataframe['rel_error'].abs())
         return mape
     
     

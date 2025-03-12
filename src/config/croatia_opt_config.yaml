@@ -6,8 +6,8 @@ normalization_flag: false
 detailed_diff_report_flag: true
 energy_model_flag: false
 subsector_to_calibrate:
-error_type: wmse
+error_type: mse
 weight_type: norm_weight
-ssp_edgar_cw: edgar_ssp_cw.csv
-swarmsize: 3 
-maxiter: 2
+ssp_edgar_cw: edgar_ssp_cw_edited.csv
+swarmsize: 350
+maxiter: 1000

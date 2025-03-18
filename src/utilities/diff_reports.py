@@ -60,8 +60,17 @@ class DiffReportUtils:
         # Load cw tables
         ssp_edgar_cw = pd.read_csv(self.ssp_edgar_cw_path)
 
+        # Remove blank spaces from column names
+        ssp_edgar_cw.columns = ssp_edgar_cw.columns.str.strip()
+        
         # Set column names to lowercase
         ssp_edgar_cw.columns = ssp_edgar_cw.columns.str.lower()
+
+        # Filter by ignore column
+        ssp_edgar_cw = ssp_edgar_cw[ssp_edgar_cw['ignore'] != 1]
+
+        # Reset index
+        ssp_edgar_cw = ssp_edgar_cw.reset_index(drop=True)
         
         return ssp_edgar_cw
     
@@ -190,25 +199,25 @@ class DiffReportUtils:
         # Create a set of all column names in simulation_df for quick lookup
         simulation_df_cols = set(simulation_df.columns)
 
-        # Create a set to store all missing variable names
-        missing_variables = set()
-
         # Iterate through each row in detailed_report_draft_df
         for index, row in ssp_emissions_report.iterrows():
-            vars_list = row['vars'].split(':')  # Split Vars column into variable names
+            
+            vars_list = row['vars'].split(':') if pd.notna(row['vars']) else []  # Split Vars column into variable names if not NaN
 
-            # Check which variable names are missing in simulation_df
-            missing_in_row = [var for var in vars_list if var not in simulation_df_cols]
-            missing_variables.update(missing_in_row)  # Add missing variables to the set
+            # Set missing_variables to True if any variable in vars_list is not in simulation_df otherwise False
+            missing_variables = any(var not in simulation_df_cols for var in vars_list)
 
-            # Filter the columns in simulation_df that match the variable names
-            matching_columns = [col for col in vars_list if col in simulation_df_cols]
-
-            if matching_columns:
-                # Sum the matching columns to get the total emissions for the subsector
-                subsector_total_emissions = simulation_df[matching_columns].sum(axis=1).values[0]
+            #NOTE: DEBUG ONLY PLEASE REMOVE
+            # print(f"Missing variables for {row['subsector']} {missing_variables}")
+            
+            if missing_variables:
+                # Set subsector_total_emissions to NaN if missing variables
+                subsector_total_emissions = np.nan
+            elif vars_list:
+                # Sum columns in the simulation df
+                subsector_total_emissions = simulation_df[vars_list].sum(axis=1).values[0]
             else:
-                # Set subsector_total_emissions to NaN if no matching columns are found
+                # Set subsector_total_emissions to NaN if vars_list is empty
                 subsector_total_emissions = np.nan
 
             # Update the simulation_values column in detailed_report_draft_df
@@ -230,7 +239,14 @@ class DiffReportUtils:
             self.model_failed_flag = False
 
         # Drop unnecessary columns
-        ssp_emissions_report.drop(columns=['vars', 'edgar_subsector', 'edgar_sector'], inplace=True)
+        ssp_emissions_report.drop(columns=['vars',
+                                           'edgar_subsector',
+                                           'edgar_sector',
+                                           'ignore', 
+                                           'note', 
+                                           'need_better_information_on_what_is_contained'
+                                           ], 
+                                           inplace=True)
 
         return ssp_emissions_report
     
@@ -425,6 +441,9 @@ class DiffReportUtils:
         # If energy_model_flag is False remove the rows with 'fgtv', 'entc', and 'ccsq' in subsector column
         if not self.energy_model_flag:
             merged_df = merged_df[~merged_df['subsector'].isin(['fgtv', 'entc', 'ccsq'])]
+
+        # Drop rows with NaNs in edgar_emission columns. NOTE: This might not be needed when the mapping is complete
+        merged_df = merged_df.dropna(subset=['edgar_emission'])
 
 
         #NOTE: We create edgar_emission_epsilon here temporarily until we have the complete mapping of Edgar classes

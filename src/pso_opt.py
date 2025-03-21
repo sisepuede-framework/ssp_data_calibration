@@ -233,11 +233,16 @@ def objective_function(x):
     
     else:
         # Generate diff reports to calculate Error
-        dru.run_report_generator(edgar_emission_df=edgar_df, ssp_out_df=sim_output_df, subsector_to_calibrate=subsector_to_calibrate)
+        report_dict = dru.run_report_generator(edgar_emission_df=edgar_df, ssp_out_df=sim_output_df, subsector_to_calibrate=subsector_to_calibrate)
+
+        # Get reports and flags from dict
+        sectoral_emission_report = report_dict['sectoral_emission_report']
+        subsector_emission_report = report_dict['subsector_emission_report']
+        model_failed_flag = report_dict['model_failed_flag']
 
         
         # Checks if the model failed in any subsector
-        if dru.model_failed_flag:
+        if model_failed_flag:
             error_val = worst_valid_error * 1.1  # Slighly higher than the worst valid error for invalid outputs
             logging.warning("Model failed in a subsector. Setting Error to a penalty.")
             error_msg = "WARNING: Model failed in a subsector."
@@ -245,9 +250,9 @@ def objective_function(x):
         
         # Calculate error
         elif detailed_diff_report_flag:
-            error_val = ef.calculate_error(error_type, dru.sectoral_emission_report, weight_type)
+            error_val = ef.calculate_error(error_type, sectoral_emission_report, weight_type)
         else:
-            error_val = ef.calculate_error(error_type, dru.subsector_emission_report, weight_type)
+            error_val = ef.calculate_error(error_type, subsector_emission_report, weight_type)
 
     # Update worst_valid_error
     if error_val > worst_valid_error:
@@ -266,8 +271,8 @@ def objective_function(x):
     if error_val < previous_error:
         previous_error = error_val
         processed_input_df.to_csv(build_path([RUN_OUTPUT_DIR, f"best_input_df_{unique_id}.csv"]), index=False)
-        dru.sectoral_emission_report.to_csv(build_path([RUN_OUTPUT_DIR, f"best_detailed_diff_report_{unique_id}.csv"]), index=False)
-        dru.subsector_emission_report.to_csv(build_path([RUN_OUTPUT_DIR, f"best_subsector_diff_report_{unique_id}.csv"]), index=False)
+        sectoral_emission_report.to_csv(build_path([RUN_OUTPUT_DIR, f"best_detailed_diff_report_{unique_id}.csv"]), index=False)
+        subsector_emission_report.to_csv(build_path([RUN_OUTPUT_DIR, f"best_subsector_diff_report_{unique_id}.csv"]), index=False)
         logging.info(f"Best Input Data and Diff Reports Updated to {RUN_OUTPUT_DIR}")
 
     return error_val
@@ -288,7 +293,7 @@ logging.info(f"PSO optimization completed for {target_region} (run id: {unique_i
 end_time = time.time()
 elapsed_time = end_time - start_time
 logging.info(f"Elapsed time: {elapsed_time:.2f} seconds")
-logging.info(f"Best scaling vector: {best_solution}")
+# logging.info(f"Best scaling vector: {best_solution}")
 logging.info(f"Best error: {best_value}")
 
 # Save scaling vector

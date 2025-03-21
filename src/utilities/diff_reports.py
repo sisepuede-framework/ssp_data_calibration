@@ -34,7 +34,6 @@ class DiffReportUtils:
             ssp_edgar_cw_path (str): Stores the file path to the SSP EDGAR CW csv file.
             iso_alpha_3 (str): Stores the ISO 3166-1 alpha-3 region code.
             epsilon (float): A small constant (1e-6) to prevent numerical issues.
-            model_failed_flag (bool): A flag indicating whether the model has failed. Defaults to False.
             sim_init_year (int): Stores the initial year for the simulation.
             comparison_year (int): Stores the year for comparison between SSP and EDGAR.
         """
@@ -42,12 +41,9 @@ class DiffReportUtils:
         self.sectoral_report_dir_path = sectoral_report_dir_path
         self.iso_alpha_3 = iso_alpha_3
         self.epsilon = 1e-6
-        self.model_failed_flag = False
         self.energy_model_flag = energy_model_flag
         self.sim_init_year = sim_init_year
         self.comparison_year = comparison_year
-        self.sectoral_emission_report = pd.DataFrame()
-        self.subsector_emission_report = pd.DataFrame()
 
     def load_ssp_edgar_cw(self):
         """
@@ -169,7 +165,7 @@ class DiffReportUtils:
         
         return edgar_region_df
     
-    def generate_ssp_emissions_report(self, ssp_out_df):
+    def generate_ssp_emissions_report(self, ssp_out_df, model_failed_flag=False):
         """
         Generate an SSP emissions report based on the provided simulation DataFrame.
         This method creates a draft SSP emissions report from the `ssp_edgar_cw` table,
@@ -226,17 +222,17 @@ class DiffReportUtils:
         # Set model_failed_flag to True if there are missing variables
         if missing_variables and self.energy_model_flag:
             print(f"Missing variables for {row['subsector']}")
-            self.model_failed_flag = True
+            model_failed_flag = True
 
         elif missing_variables and not self.energy_model_flag:
             
             if row['subsector'] not in ['entc', 'fgtv', 'ccsq']:
                 print(f"Missing variables for {row['subsector']}")
-                self.model_failed_flag = True
+                model_failed_flag = True
             else: 
-                self.model_failed_flag = False
+                model_failed_flag = False
         else:
-            self.model_failed_flag = False
+            model_failed_flag = False
 
         # Drop unnecessary columns
         ssp_emissions_report.drop(columns=['vars',
@@ -248,7 +244,7 @@ class DiffReportUtils:
                                            ], 
                                            inplace=True)
 
-        return ssp_emissions_report
+        return ssp_emissions_report, model_failed_flag
     
     def group_ssp_emissions_report_vars(self, ssp_emissions_report):
         """
@@ -427,7 +423,7 @@ class DiffReportUtils:
         """
         
         # Generate the SSP emissions report
-        ssp_emissions_report = self.generate_ssp_emissions_report(ssp_out_df)
+        ssp_emissions_report, model_failed_flag = self.generate_ssp_emissions_report(ssp_out_df)
 
         # Group the ssp_emissions_report to match the edgar_emission_df. NOTE: This is a temporal fix
         ssp_emissions_report = self.group_ssp_emissions_report_vars(ssp_emissions_report)
@@ -465,13 +461,13 @@ class DiffReportUtils:
             subsector_diff_report = subsector_diff_report[subsector_diff_report['subsector'] == subsector_to_calibrate]
 
         
-        # Set the sectoral_emission_report attribute to the generated report
-        self.sectoral_emission_report = merged_df.copy()
-       
-        # Set the subsector_emission_report attribute to the generated report
-        self.subsector_emission_report = subsector_diff_report.copy()
+        reports_dict = {
+            'sectoral_emission_report': merged_df,
+            'subsector_emission_report': subsector_diff_report,
+            'model_failed_flag': model_failed_flag
+        }
         
-        return None
+        return reports_dict
     
     
 

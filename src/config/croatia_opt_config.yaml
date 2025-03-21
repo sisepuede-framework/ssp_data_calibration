@@ -8,6 +8,6 @@ energy_model_flag: false
 subsector_to_calibrate:
 error_type: mse
 weight_type: norm_weight
-ssp_edgar_cw: edgar_ssp_cw_edited.csv
-swarmsize: 350
-maxiter: 1000
+ssp_edgar_cw: sisepuede_edgar_active_crosswalk.csv
+swarmsize: 5
+maxiter: 3

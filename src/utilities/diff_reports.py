@@ -62,8 +62,9 @@ class DiffReportUtils:
         # Set column names to lowercase
         ssp_edgar_cw.columns = ssp_edgar_cw.columns.str.lower()
 
-        # Filter by ignore column
-        ssp_edgar_cw = ssp_edgar_cw[ssp_edgar_cw['ignore'] != 1]
+        # Filter by ignore column if it exists
+        if 'ignore' in ssp_edgar_cw.columns:
+            ssp_edgar_cw = ssp_edgar_cw[ssp_edgar_cw['ignore'] != 1]
 
         # Reset index
         ssp_edgar_cw = ssp_edgar_cw.reset_index(drop=True)
@@ -234,15 +235,8 @@ class DiffReportUtils:
         else:
             model_failed_flag = False
 
-        # Drop unnecessary columns
-        ssp_emissions_report.drop(columns=['vars',
-                                           'edgar_subsector',
-                                           'edgar_sector',
-                                           'ignore', 
-                                           'note', 
-                                           'need_better_information_on_what_is_contained'
-                                           ], 
-                                           inplace=True)
+        # Keep only relevant columns
+        ssp_emissions_report = ssp_emissions_report[['subsector', 'gas', 'edgar_class', 'ssp_emission']]
 
         return ssp_emissions_report, model_failed_flag
     
@@ -409,7 +403,7 @@ class DiffReportUtils:
     
     
     
-    def run_report_generator(self, edgar_emission_df, ssp_out_df, subsector_to_calibrate=None):
+    def run_report_generator(self, edgar_emission_df, ssp_out_df):
         """
         Run the report generator to generate a sectoral emissions report.
         This method generates a sectoral emissions report by merging the SSP emissions report with the EDGAR emissions data,
@@ -453,13 +447,6 @@ class DiffReportUtils:
 
         # Generate subsector emission report
         subsector_diff_report = self.generate_subsector_diff_report(merged_df)
-
-        # Filter the merged_df and subsector_diff_report for the subsector to calibrate
-
-        if subsector_to_calibrate is not None:
-            merged_df = merged_df[merged_df['subsector'] == subsector_to_calibrate]
-            subsector_diff_report = subsector_diff_report[subsector_diff_report['subsector'] == subsector_to_calibrate]
-
         
         reports_dict = {
             'sectoral_emission_report': merged_df,

@@ -397,16 +397,24 @@ class ErrorFunctions:
         wmape = np.mean(dataframe['norm_weight'] * dataframe['rel_error'].abs()) * 100
         return wmape    
     
-    def calculate_error(self, error_type, dataframe, weight_type='norm_weight'):
+    def calculate_error(self, error_type, dataframe, weight_type='norm_weight', subsector_to_calibrate=None):
         """
-        Calculates the error based on the specified error type.
+        Calculates the specified error type for the given DataFrame.
 
         Args:
-            dataframe (pd.DataFrame): DataFrame containing weights and squared differences.
-
+            error_type (str): The type of error to calculate.
+            dataframe (pd.DataFrame): The DataFrame containing the error values.
+            weight_type (str, optional): The type of weight to use for the error calculation. Defaults to 'norm_weight'.
+            subsector_to_calibrate (str, optional): The subsector to calibrate. Defaults to None.
+        
         Returns:
-            float: Error value.
+            float: The calculated error value.
         """
+
+        # Filter the DataFrame by subsector if specified
+        if subsector_to_calibrate is not None:
+            dataframe = dataframe[dataframe['subsector'] == subsector_to_calibrate]
+
         if error_type == 'wmse':
             return self.wmse(dataframe)
         elif error_type == 'rmse':

@@ -62,8 +62,9 @@ class DiffReportUtils:
         # Set column names to lowercase
         ssp_edgar_cw.columns = ssp_edgar_cw.columns.str.lower()
 
-        # Filter by ignore column
-        ssp_edgar_cw = ssp_edgar_cw[ssp_edgar_cw['ignore'] != 1]
+        # Filter by ignore column if it exists
+        if 'ignore' in ssp_edgar_cw.columns:
+            ssp_edgar_cw = ssp_edgar_cw[ssp_edgar_cw['ignore'] != 1]
 
         # Reset index
         ssp_edgar_cw = ssp_edgar_cw.reset_index(drop=True)
@@ -234,15 +235,8 @@ class DiffReportUtils:
         else:
             model_failed_flag = False
 
-        # Drop unnecessary columns
-        ssp_emissions_report.drop(columns=['vars',
-                                           'edgar_subsector',
-                                           'edgar_sector',
-                                           'ignore', 
-                                           'note', 
-                                           'need_better_information_on_what_is_contained'
-                                           ], 
-                                           inplace=True)
+        # Keep only relevant columns
+        ssp_emissions_report = ssp_emissions_report[['subsector', 'gas', 'edgar_class', 'ssp_emission']]
 
         return ssp_emissions_report, model_failed_flag
     

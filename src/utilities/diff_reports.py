@@ -403,7 +403,7 @@ class DiffReportUtils:
     
     
     
-    def run_report_generator(self, edgar_emission_df, ssp_out_df, subsector_to_calibrate=None):
+    def run_report_generator(self, edgar_emission_df, ssp_out_df):
         """
         Run the report generator to generate a sectoral emissions report.
         This method generates a sectoral emissions report by merging the SSP emissions report with the EDGAR emissions data,
@@ -447,13 +447,6 @@ class DiffReportUtils:
 
         # Generate subsector emission report
         subsector_diff_report = self.generate_subsector_diff_report(merged_df)
-
-        # Filter the merged_df and subsector_diff_report for the subsector to calibrate
-
-        if subsector_to_calibrate is not None:
-            merged_df = merged_df[merged_df['subsector'] == subsector_to_calibrate]
-            subsector_diff_report = subsector_diff_report[subsector_diff_report['subsector'] == subsector_to_calibrate]
-
         
         reports_dict = {
             'sectoral_emission_report': merged_df,

@@ -5,7 +5,7 @@ input_rows: 10
 normalization_flag: false
 detailed_diff_report_flag: true
 energy_model_flag: false
-subsector_to_calibrate:
+subsector_to_calibrate: frst
 error_type: mse
 weight_type: norm_weight
 ssp_edgar_cw: sisepuede_edgar_active_crosswalk.csv

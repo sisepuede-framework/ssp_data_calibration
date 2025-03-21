@@ -233,7 +233,7 @@ def objective_function(x):
     
     else:
         # Generate diff reports to calculate Error
-        report_dict = dru.run_report_generator(edgar_emission_df=edgar_df, ssp_out_df=sim_output_df, subsector_to_calibrate=subsector_to_calibrate)
+        report_dict = dru.run_report_generator(edgar_emission_df=edgar_df, ssp_out_df=sim_output_df)
 
         # Get reports and flags from dict
         sectoral_emission_report = report_dict['sectoral_emission_report']
@@ -250,9 +250,9 @@ def objective_function(x):
         
         # Calculate error
         elif detailed_diff_report_flag:
-            error_val = ef.calculate_error(error_type, sectoral_emission_report, weight_type)
+            error_val = ef.calculate_error(error_type, sectoral_emission_report, weight_type, subsector_to_calibrate)
         else:
-            error_val = ef.calculate_error(error_type, subsector_emission_report, weight_type)
+            error_val = ef.calculate_error(error_type, subsector_emission_report, weight_type, subsector_to_calibrate)
 
     # Update worst_valid_error
     if error_val > worst_valid_error:

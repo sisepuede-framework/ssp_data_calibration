@@ -1,6 +1,6 @@
 target_region: croatia
 iso_alpha_3: HRV
-stressed_variables_report_version: stressed_variables_report_2025_04_10.xlsx
+stressed_variables_report_version: stressed_variables_report_2025_04_10_v3.xlsx
 input_rows: 10
 normalization_flag: false
 detailed_diff_report_flag: true

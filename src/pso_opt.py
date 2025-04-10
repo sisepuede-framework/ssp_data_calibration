@@ -148,6 +148,8 @@ frac_vars_mapping['special_case'].value_counts()
 group_ids = stressed_vars_mapping[stressed_vars_mapping["is_stressed"] == 1]["group_id"].unique()
 n_groups = len(group_ids)
 
+logging.info(f"Number of groups to stress: {n_groups}")
+
 # Get the lower and upper bounds for each group
 l_bounds = stressed_vars_mapping.groupby("group_id")["l_bound"].first().values
 u_bounds = stressed_vars_mapping.groupby("group_id")["u_bound"].first().values
@@ -156,6 +158,10 @@ u_bounds = stressed_vars_mapping.groupby("group_id")["u_bound"].first().values
 group_vars_dict = {}
 for group_id in group_ids:
     group_vars_dict[group_id] = stressed_vars_mapping[stressed_vars_mapping["group_id"] == group_id]["variable_name"].values
+
+# Crear un nuevo diccionario con claves reenumeradas del 1 a n
+reordered_dict = {new_id: group_vars_dict[old_id] for new_id, old_id in enumerate(group_vars_dict, 0)}
+logging.info(f"Group variables dictionary: {reordered_dict}")
 
 # Initialize the ErrorFunctions class
 ef = ErrorFunctions()
@@ -198,6 +204,7 @@ def objective_function(x):
     global worst_valid_error
     global previous_error
     global edgar_df
+    global reordered_dict
     
     
     # x: scaling factors for each group_id
@@ -205,8 +212,11 @@ def objective_function(x):
     
     # TODO: Vectorize this loop
     # Scale the variables per group
-    for group_id in group_vars_dict:
-        for var in group_vars_dict[group_id]:
+    logging.info("Scaling variables: ", x)
+
+    for group_id in reordered_dict:
+        print('group_id:', group_id)
+        for var in reordered_dict[group_id]:
             modified_df[var] = modified_df[var] * x[group_id]
     
     

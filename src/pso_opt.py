@@ -129,8 +129,6 @@ stressed_vars_mapping = stressed_vars_mapping.reset_index(drop=True)
 # Set group_id as integer
 stressed_vars_mapping['group_id'] = stressed_vars_mapping['group_id'].astype(int)
 
-# Check group id array
-stressed_vars_mapping.group_id.unique()
 
 # Get the list of vars to clip
 vars_to_clip = stressed_vars_mapping[stressed_vars_mapping['is_capped'] == 1]['variable_name'].tolist()
@@ -141,18 +139,14 @@ frac_vars_to_stress = [var for var in stressed_vars_mapping['variable_name'].val
 # Subset frac_vars_mapping to only include the frac_vars that are going to be stressed
 frac_vars_mapping = frac_vars_mapping[frac_vars_mapping['frac_var_name'].isin(frac_vars_to_stress)].reset_index(drop=True)
 
-# Check special_case distribution
-frac_vars_mapping['special_case'].value_counts()
+# Make sure stressed_vars_mapping is sorted by group_id
+stressed_vars_mapping = stressed_vars_mapping.sort_values(by='group_id', ascending=True)
 
 # Get group ids of the vars that are stressed
 group_ids = stressed_vars_mapping[stressed_vars_mapping["is_stressed"] == 1]["group_id"].unique()
 n_groups = len(group_ids)
 
 logging.info(f"Number of groups to stress: {n_groups}")
-
-# Get the lower and upper bounds for each group
-l_bounds = stressed_vars_mapping.groupby("group_id")["l_bound"].first().values
-u_bounds = stressed_vars_mapping.groupby("group_id")["u_bound"].first().values
 
 # Create a dictionary with the group ids as keys and the corresponding variable names as values
 group_vars_dict = {}
@@ -162,6 +156,10 @@ for group_id in group_ids:
 # Crear un nuevo diccionario con claves reenumeradas del 1 a n
 reordered_dict = {new_id: group_vars_dict[old_id] for new_id, old_id in enumerate(group_vars_dict, 0)}
 logging.info(f"Group variables dictionary: {reordered_dict}")
+
+# Get the lower and upper bounds for each group
+l_bounds = stressed_vars_mapping.groupby("group_id")["l_bound"].first().values
+u_bounds = stressed_vars_mapping.groupby("group_id")["u_bound"].first().values
 
 # Initialize the ErrorFunctions class
 ef = ErrorFunctions()

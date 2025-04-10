@@ -208,14 +208,14 @@ def objective_function(x):
     
     
     # x: scaling factors for each group_id
+    logging.info(f"Current scaling factors: {x}")
+    
     modified_df = df_input.copy()
     
     # TODO: Vectorize this loop
     # Scale the variables per group
-    logging.info("Scaling variables: ", x)
-
     for group_id in reordered_dict:
-        print('group_id:', group_id)
+        # print('group_id:', group_id)
         for var in reordered_dict[group_id]:
             modified_df[var] = modified_df[var] * x[group_id]
     

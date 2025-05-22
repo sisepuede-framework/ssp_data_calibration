@@ -168,7 +168,7 @@ ef = ErrorFunctions()
 
 #  Initialize the DiffReportUtils class
 edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, ssp_edgar_cw_file_name])
-dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag)
+dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, sim_init_year=2022, comparison_year=2022)
 
 # Generate EDGAR df #TODO: Make sure this is properly done when using Uganda and not Croatia
 edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'CSC-GHG_emissions-April2024_to_calibrate.csv'])

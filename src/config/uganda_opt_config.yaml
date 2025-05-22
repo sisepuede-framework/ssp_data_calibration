@@ -1,7 +1,7 @@
-target_region: croatia
-iso_alpha_3: HRV
+target_region: uganda
+iso_alpha_3: UGA
 stressed_variables_report_version: stressed_variables_report_2025_04_15.xlsx
-input_data_file_to_calibrate: croatia_input_data.csv
+input_data_file_to_calibrate: input_ssp_uganda_250522.csv
 input_rows: 10
 normalization_flag: false
 detailed_diff_report_flag: true

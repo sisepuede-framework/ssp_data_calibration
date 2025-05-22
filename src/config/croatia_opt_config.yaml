@@ -1,12 +1,12 @@
 target_region: croatia
 iso_alpha_3: HRV
-stressed_variables_report_version: stressed_variables_report_2025_04_10_v3.xlsx
+stressed_variables_report_version: stressed_variables_report_2025_04_15.xlsx
 input_rows: 10
 normalization_flag: false
 detailed_diff_report_flag: true
 energy_model_flag: false
-subsector_to_calibrate: frst
-error_type: mse
+subsector_to_calibrate:
+error_type: wmse
 weight_type: norm_weight
 ssp_edgar_cw: sisepuede_edgar_active_crosswalk.csv
 swarmsize: 3

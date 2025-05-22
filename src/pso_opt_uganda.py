@@ -304,4 +304,3 @@ logging.info(f"Best error: {best_value}")
 # Save scaling vector
 scaling_vector_df = pd.DataFrame(best_solution, columns=['scaling_factor'])
 scaling_vector_df.to_csv(build_path([RUN_OUTPUT_DIR, f"scaling_vector_{unique_id}.csv"]), index=False)
-

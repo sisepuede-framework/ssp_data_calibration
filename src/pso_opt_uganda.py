@@ -1,18 +1,11 @@
-import copy
-import datetime as dt
-import importlib
-import matplotlib.pyplot as plt
 import os
 import numpy as np
 import pandas as pd
-import pathlib
 import sys
 import time
-import pickle
-from typing import Union
-import warnings
 from datetime import datetime
 from pyswarm import pso  # Install with: pip install pyswarm
+import warnings
 warnings.filterwarnings("ignore")
 from utilities.utils import HelperFunctions, SSPModelForCalibration, ErrorFunctions
 from utilities.diff_reports import DiffReportUtils
@@ -45,7 +38,7 @@ os.makedirs(OPT_OUTPUT_PATH, exist_ok=True)
 # Get important params from the YAML file
 
 try:
-    yaml_file = 'croatia_opt_config.yaml'
+    yaml_file = 'uganda_opt_config.yaml'
 except IndexError:
     raise ValueError("YAML configuration file must be provided as a command-line argument.")
 
@@ -107,13 +100,13 @@ df_input = pd.read_csv(REAL_DATA_FILE_PATH)
 # Add missing columns and reformat the input datas
 df_input = df_input.rename(columns={'period': 'time_period'})
 df_input = helper_functions.add_missing_cols(cr, df_input.copy())
-df_input = df_input.drop(columns='iso_code3')
+df_input = df_input.drop(columns='iso_code3', errors='ignore')
 
 # Subset df_input to the input rows amount
 df_input = df_input.iloc[:input_rows]
 
 # Load frac_vars mapping excel
-frac_vars_mapping = pd.read_excel(build_path([VAR_MAPPING_FILES_PATH, 'frac_vars_mapping.xlsx']), sheet_name='frac_vars')
+# frac_vars_mapping = pd.read_excel(build_path([VAR_MAPPING_FILES_PATH, 'frac_vars_mapping.xlsx']), sheet_name='frac_vars')
 
 # Load the stressed variables mapping file
 stressed_vars_mapping = pd.read_excel(build_path([VAR_MAPPING_FILES_PATH, stressed_variables_report_version]))
@@ -136,10 +129,10 @@ stressed_vars_mapping['group_id'] = stressed_vars_mapping['group_id'].astype(int
 vars_to_clip = stressed_vars_mapping[stressed_vars_mapping['is_capped'] == 1]['variable_name'].tolist()
 
 # Get the frac_vars that are going to be stressed
-frac_vars_to_stress = [var for var in stressed_vars_mapping['variable_name'].values if var.startswith('frac_')]
+# frac_vars_to_stress = [var for var in stressed_vars_mapping['variable_name'].values if var.startswith('frac_')]
 
 # Subset frac_vars_mapping to only include the frac_vars that are going to be stressed
-frac_vars_mapping = frac_vars_mapping[frac_vars_mapping['frac_var_name'].isin(frac_vars_to_stress)].reset_index(drop=True)
+# frac_vars_mapping = frac_vars_mapping[frac_vars_mapping['frac_var_name'].isin(frac_vars_to_stress)].reset_index(drop=True)
 
 # Make sure stressed_vars_mapping is sorted by group_id
 stressed_vars_mapping = stressed_vars_mapping.sort_values(by='group_id', ascending=True)
@@ -168,9 +161,9 @@ ef = ErrorFunctions()
 
 #  Initialize the DiffReportUtils class
 edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, ssp_edgar_cw_file_name])
-dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag)
+dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, sim_init_year=2022, comparison_year=2022)
 
-# Generate EDGAR df #TODO: Make sure this is properly done when using Uganda and not Croatia
+# Generate EDGAR df ##TODO: Make sure this is properly done when using Uganda and not Croatia
 edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'CSC-GHG_emissions-April2024_to_calibrate.csv'])
 edgar_df = dru.edgar_emission_db_etl(edgar_emission_db_path)
 
@@ -220,15 +213,17 @@ def objective_function(x):
             modified_df[var] = modified_df[var] * x[group_id]
     
     
-    if normalization_flag:
-        # Handle frac var group normalization
-        processed_input_df = helper_functions.simple_frac_normalization(modified_df, frac_vars_mapping)
+    # if normalization_flag:
+    #     # Handle frac var group normalization
+    #     processed_input_df = helper_functions.simple_frac_normalization(modified_df, frac_vars_mapping)
 
-        # Clip the variables
-        processed_input_df = helper_functions.clip_values(processed_input_df, vars_to_clip)
+    #     # Clip the variables
+    #     processed_input_df = helper_functions.clip_values(processed_input_df, vars_to_clip)
     
-    else:
-        processed_input_df = modified_df.copy()
+    # else:
+    #     processed_input_df = modified_df.copy()
+
+    processed_input_df = modified_df.copy()
 
     
     # Run the model

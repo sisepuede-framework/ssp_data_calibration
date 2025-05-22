@@ -33,8 +33,6 @@ SRC_FILE_PATH = os.getcwd()
 build_path = lambda PATH: os.path.abspath(os.path.join(*PATH))
 DATA_PATH = build_path([SRC_FILE_PATH, "..", "data"])
 OUTPUT_PATH = build_path([SRC_FILE_PATH, "..", "output"])
-PSO_OUTPUT_PATH = build_path([OUTPUT_PATH, "pso"])
-REAL_DATA_FILE_PATH = build_path([DATA_PATH, "real_data.csv"])
 MISC_FILES_PATH = build_path([SRC_FILE_PATH, 'misc'])
 VAR_MAPPING_FILES_PATH = build_path([MISC_FILES_PATH, 'var_mapping'])
 SECTORAL_REPORT_PATH = build_path([MISC_FILES_PATH, 'sectoral_reports'])
@@ -56,6 +54,7 @@ param_dict = helper_functions.get_parameters_from_yaml(build_path([OPT_CONFIG_FI
 target_region = param_dict['target_region']
 iso_alpha_3 = param_dict['iso_alpha_3']
 stressed_variables_report_version = param_dict['stressed_variables_report_version']
+input_data_file_to_calibrate = param_dict["input_data_file_to_calibrate"]
 normalization_flag = param_dict['normalization_flag']
 detailed_diff_report_flag = param_dict['detailed_diff_report_flag']
 energy_model_flag = param_dict['energy_model_flag']
@@ -71,6 +70,7 @@ ssp_edgar_cw_file_name = param_dict['ssp_edgar_cw']
 logging.info(f"Starting optimization for {target_region} (ISO code: {iso_alpha_3})")
 logging.info(f"Input rows: {input_rows}")
 logging.info(f"Stressed variables report version: {stressed_variables_report_version}")
+logging.info(f"Input data file to calibrate: {input_data_file_to_calibrate}")
 logging.info(f"Normalization flag: {normalization_flag}")
 logging.info(f"Energy model flag: {energy_model_flag}")
 logging.info(f"Subsector to calibrate: {subsector_to_calibrate}")
@@ -86,6 +86,7 @@ logging.info(f"SSP-EDGAR crosswalk file: {ssp_edgar_cw_file_name}")
 os.makedirs(OPT_OUTPUT_PATH, exist_ok=True)
 
 # Make sure pso output directories exist
+PSO_OUTPUT_PATH = build_path([OUTPUT_PATH, target_region])
 os.makedirs(PSO_OUTPUT_PATH, exist_ok=True)
 
 # Create the output directory for the PSO results using the unique ID
@@ -98,6 +99,7 @@ config_file_output_path = os.path.join(RUN_OUTPUT_DIR, config_file_name)
 helper_functions.copy_param_yaml(build_path([OPT_CONFIG_FILES_PATH, yaml_file]), config_file_output_path)
 
 # Load input dataset
+REAL_DATA_FILE_PATH = build_path([DATA_PATH, input_data_file_to_calibrate])
 examples = SISEPUEDEExamples()
 cr = examples("input_data_frame")
 df_input = pd.read_csv(REAL_DATA_FILE_PATH)
@@ -155,7 +157,7 @@ for group_id in group_ids:
 
 # Crear un nuevo diccionario con claves reenumeradas del 1 a n
 reordered_dict = {new_id: group_vars_dict[old_id] for new_id, old_id in enumerate(group_vars_dict, 0)}
-logging.info(f"Group variables dictionary: {reordered_dict}")
+# logging.info(f"Group variables dictionary: {reordered_dict}")
 
 # Get the lower and upper bounds for each group
 l_bounds = stressed_vars_mapping.groupby("group_id")["l_bound"].first().values
@@ -168,7 +170,7 @@ ef = ErrorFunctions()
 edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, ssp_edgar_cw_file_name])
 dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag)
 
-# Generate EDGAR df
+# Generate EDGAR df #TODO: Make sure this is properly done when using Uganda and not Croatia
 edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'CSC-GHG_emissions-April2024_to_calibrate.csv'])
 edgar_df = dru.edgar_emission_db_etl(edgar_emission_db_path)
 
@@ -206,7 +208,7 @@ def objective_function(x):
     
     
     # x: scaling factors for each group_id
-    logging.info(f"Current scaling factors: {x}")
+    # logging.info(f"Current scaling factors: {x}")
     
     modified_df = df_input.copy()
     

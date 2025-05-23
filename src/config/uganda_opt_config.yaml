@@ -1,6 +1,6 @@
 target_region: uganda
 iso_alpha_3: UGA
-stressed_variables_report_version: stressed_variables_report_2025_04_15.xlsx
+stressed_variables_report_version: stressed_variables_report_2025_05_23_v4.xlsx
 input_data_file_to_calibrate: input_ssp_uganda_250522.csv
 input_rows: 10
 normalization_flag: false
@@ -10,5 +10,5 @@ subsector_to_calibrate:
 error_type: wmse
 weight_type: norm_weight
 ssp_edgar_cw: sisepuede_edgar_active_crosswalk.csv
-swarmsize: 3
-maxiter: 5
+swarmsize: 300
+maxiter: 10

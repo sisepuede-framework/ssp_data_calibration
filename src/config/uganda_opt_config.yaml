@@ -5,10 +5,10 @@ input_data_file_to_calibrate: input_ssp_uganda_250522.csv
 input_rows: 10
 normalization_flag: false
 detailed_diff_report_flag: true
-energy_model_flag: false
+energy_model_flag: true
 subsector_to_calibrate:
-error_type: wmse
+error_type: mse
 weight_type: norm_weight
 ssp_edgar_cw: sisepuede_edgar_active_crosswalk.csv
-swarmsize: 300
-maxiter: 10
+swarmsize: 3
+maxiter: 2

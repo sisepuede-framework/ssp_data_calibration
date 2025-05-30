@@ -51,6 +51,7 @@ input_data_file_to_calibrate = param_dict["input_data_file_to_calibrate"]
 normalization_flag = param_dict['normalization_flag']
 detailed_diff_report_flag = param_dict['detailed_diff_report_flag']
 energy_model_flag = param_dict['energy_model_flag']
+use_edgar_db_flag = param_dict['use_edgar_db_flag']
 subsector_to_calibrate = param_dict['subsector_to_calibrate']
 error_type = param_dict['error_type']
 weight_type = param_dict['weight_type']
@@ -66,6 +67,7 @@ logging.info(f"Stressed variables report version: {stressed_variables_report_ver
 logging.info(f"Input data file to calibrate: {input_data_file_to_calibrate}")
 logging.info(f"Normalization flag: {normalization_flag}")
 logging.info(f"Energy model flag: {energy_model_flag}")
+logging.info(f"Use EDGAR DB flag: {use_edgar_db_flag}")
 logging.info(f"Subsector to calibrate: {subsector_to_calibrate}")
 logging.info(f"Error type: {error_type}")
 logging.info(f"Weight type: {weight_type}")
@@ -161,11 +163,16 @@ ef = ErrorFunctions()
 
 #  Initialize the DiffReportUtils class
 edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, ssp_edgar_cw_file_name])
-dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, sim_init_year=2022, comparison_year=2022)
+dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, use_edgar_db_flag=use_edgar_db_flag, sim_init_year=2022, comparison_year=2022)
 
-# Generate EDGAR df ##TODO: Make sure this is properly done when using Uganda and not Croatia
-edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'CSC-GHG_emissions-April2024_to_calibrate.csv'])
-edgar_df = dru.edgar_emission_db_etl(edgar_emission_db_path)
+# Generate EDGAR df #
+if use_edgar_db_flag:
+    edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'CSC-GHG_emissions-April2024_to_calibrate.csv'])
+    edgar_df = dru.edgar_emission_db_etl(edgar_emission_db_path)
+else:
+    edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'emission_targets_uganda.csv'])
+    edgar_df = dru.get_edgar_region_df(edgar_emission_db_path)
+
 
 # Initialize global variable to store the previous calculated error
 previous_error = float('inf')

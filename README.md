@@ -53,7 +53,7 @@ directory that is created when a run starts.
    the region, input file, variable bounds and PSO settings.
 2. The input dataset is loaded from `data/`.  Groups of variables are
    scaled according to the optimisation vector.  Optional normalisation
-   and clipping can be applied.
+   and clipping can be applied although this is outdated and it will be removed in a upcoming version.
 3. The stressed dataset is passed to the Sisepuede model
    (`utilities.SSPModelForCalibration`) to obtain simulated emissions.
 4. `utilities.DiffReportUtils` compares the simulation with EDGAR (or a
@@ -81,3 +81,7 @@ Each script reads its corresponding YAML configuration file.  Adjust the
 parameters there to change the input file, number of iterations or error
 settings.  Results will be written inside `output/<region>/` with a
 timestamped run identifier.
+
+## Additional Comments
+- The latest version of the opt routine is the Uganda one. if you wish to create a opt routine for a new country please use Uganda
+as the foundation.

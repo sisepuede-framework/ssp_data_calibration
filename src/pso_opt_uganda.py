@@ -11,6 +11,7 @@ from utilities.utils import HelperFunctions, SSPModelForCalibration, ErrorFuncti
 from utilities.diff_reports import DiffReportUtils
 import logging
 from sisepuede.manager.sisepuede_examples import SISEPUEDEExamples
+import json
 
 
 # Configure logging
@@ -48,26 +49,28 @@ target_region = param_dict['target_region']
 iso_alpha_3 = param_dict['iso_alpha_3']
 stressed_variables_report_version = param_dict['stressed_variables_report_version']
 input_data_file_to_calibrate = param_dict["input_data_file_to_calibrate"]
-normalization_flag = param_dict['normalization_flag']
 detailed_diff_report_flag = param_dict['detailed_diff_report_flag']
 energy_model_flag = param_dict['energy_model_flag']
 use_edgar_db_flag = param_dict['use_edgar_db_flag']
+sim_init_year = param_dict['sim_init_year']
+comparison_year = param_dict['comparison_year']
 subsector_to_calibrate = param_dict['subsector_to_calibrate']
 error_type = param_dict['error_type']
 weight_type = param_dict['weight_type']
 unique_id = datetime.now().strftime("%Y%m%d%H%M%S")
 swarm_size = param_dict['swarmsize']
 maxiter = param_dict['maxiter']
-input_rows = param_dict['input_rows']
+# input_rows = param_dict['input_rows']
 ssp_edgar_cw_file_name = param_dict['ssp_edgar_cw']
 
 logging.info(f"Starting optimization for {target_region} (ISO code: {iso_alpha_3})")
-logging.info(f"Input rows: {input_rows}")
+# logging.info(f"Input rows: {input_rows}")
 logging.info(f"Stressed variables report version: {stressed_variables_report_version}")
 logging.info(f"Input data file to calibrate: {input_data_file_to_calibrate}")
-logging.info(f"Normalization flag: {normalization_flag}")
 logging.info(f"Energy model flag: {energy_model_flag}")
 logging.info(f"Use EDGAR DB flag: {use_edgar_db_flag}")
+logging.info(f"Simulation initial year: {sim_init_year}")
+logging.info(f"Comparison year: {comparison_year}")
 logging.info(f"Subsector to calibrate: {subsector_to_calibrate}")
 logging.info(f"Error type: {error_type}")
 logging.info(f"Weight type: {weight_type}")
@@ -104,11 +107,9 @@ df_input = df_input.rename(columns={'period': 'time_period'})
 df_input = helper_functions.add_missing_cols(cr, df_input.copy())
 df_input = df_input.drop(columns='iso_code3', errors='ignore')
 
-# Subset df_input to the input rows amount
-df_input = df_input.iloc[:input_rows]
-
-# Load frac_vars mapping excel
-# frac_vars_mapping = pd.read_excel(build_path([VAR_MAPPING_FILES_PATH, 'frac_vars_mapping.xlsx']), sheet_name='frac_vars')
+#NOTE: This is under review
+# # Subset df_input to the input rows amount
+# df_input = df_input.iloc[:input_rows]
 
 # Load the stressed variables mapping file
 stressed_vars_mapping = pd.read_excel(build_path([VAR_MAPPING_FILES_PATH, stressed_variables_report_version]))
@@ -130,11 +131,6 @@ stressed_vars_mapping['group_id'] = stressed_vars_mapping['group_id'].astype(int
 # Get the list of vars to clip
 vars_to_clip = stressed_vars_mapping[stressed_vars_mapping['is_capped'] == 1]['variable_name'].tolist()
 
-# Get the frac_vars that are going to be stressed
-# frac_vars_to_stress = [var for var in stressed_vars_mapping['variable_name'].values if var.startswith('frac_')]
-
-# Subset frac_vars_mapping to only include the frac_vars that are going to be stressed
-# frac_vars_mapping = frac_vars_mapping[frac_vars_mapping['frac_var_name'].isin(frac_vars_to_stress)].reset_index(drop=True)
 
 # Make sure stressed_vars_mapping is sorted by group_id
 stressed_vars_mapping = stressed_vars_mapping.sort_values(by='group_id', ascending=True)
@@ -163,9 +159,9 @@ ef = ErrorFunctions()
 
 #  Initialize the DiffReportUtils class
 edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, ssp_edgar_cw_file_name])
-dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, use_edgar_db_flag=use_edgar_db_flag, sim_init_year=2022, comparison_year=2022)
+dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, use_edgar_db_flag=use_edgar_db_flag, sim_init_year=sim_init_year, comparison_year=comparison_year)
 
-# Generate EDGAR df #
+# Generate EDGAR df
 if use_edgar_db_flag:
     edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'CSC-GHG_emissions-April2024_to_calibrate.csv'])
     edgar_df = dru.edgar_emission_db_etl(edgar_emission_db_path)
@@ -219,16 +215,6 @@ def objective_function(x):
         for var in reordered_dict[group_id]:
             modified_df[var] = modified_df[var] * x[group_id]
     
-    
-    # if normalization_flag:
-    #     # Handle frac var group normalization
-    #     processed_input_df = helper_functions.simple_frac_normalization(modified_df, frac_vars_mapping)
-
-    #     # Clip the variables
-    #     processed_input_df = helper_functions.clip_values(processed_input_df, vars_to_clip)
-    
-    # else:
-    #     processed_input_df = modified_df.copy()
 
     processed_input_df = modified_df.copy()
 
@@ -309,5 +295,17 @@ logging.info(f"Elapsed time: {elapsed_time:.2f} seconds")
 logging.info(f"Best error: {best_value}")
 
 # Save scaling vector
-scaling_vector_df = pd.DataFrame(best_solution, columns=['scaling_factor'])
+scaling_vector_df = pd.DataFrame({'group_id': np.arange(len(best_solution)), 'scaling_factor': best_solution})
 scaling_vector_df.to_csv(build_path([RUN_OUTPUT_DIR, f"scaling_vector_{unique_id}.csv"]), index=False)
+
+# Save the reordered dictionary to a JSON file
+# Convert arrays to lists
+serializable_dict = {k: v.tolist() for k, v in reordered_dict.items()}
+
+# Save to JSON file
+with open(build_path([RUN_OUTPUT_DIR, f"reordered_dict_{unique_id}.json"]), 'w') as json_file:
+    json.dump(serializable_dict, json_file, indent=2)
+
+# log the best_solution len and the serializable_dict len
+logging.info(f"Best solution length: {len(best_solution)}")
+logging.info(f"Reordered dictionary keys length: {len(serializable_dict.keys())}")

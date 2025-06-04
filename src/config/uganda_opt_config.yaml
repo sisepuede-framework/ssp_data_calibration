@@ -2,14 +2,15 @@ target_region: uganda
 iso_alpha_3: UGA
 stressed_variables_report_version: stressed_variables_report_2025_05_23_v3.xlsx
 input_data_file_to_calibrate: input_ssp_uganda_250522.csv
-input_rows: 10
-normalization_flag: false
+# input_rows: 10
 detailed_diff_report_flag: true
 energy_model_flag: false
 use_edgar_db_flag: false
+sim_init_year: 2015 # NOTE:Most of the ssp data starts from 2015 but make sure to check the input data file
+comparison_year: 2022
 subsector_to_calibrate:
 error_type: mse
 weight_type: norm_weight
 ssp_edgar_cw: sisepuede_edgar_active_crosswalk.csv
-swarmsize: 380
-maxiter: 3
+swarmsize: 2
+maxiter: 2

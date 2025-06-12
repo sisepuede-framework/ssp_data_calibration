@@ -23,7 +23,7 @@ start_time = time.time()
 # Initialize helper functions
 helper_functions = HelperFunctions()
 # Paths
-SRC_FILE_PATH = os.getcwd()
+SRC_FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 build_path = lambda PATH: os.path.abspath(os.path.join(*PATH))
 DATA_PATH = build_path([SRC_FILE_PATH, "..", "data"])
 OUTPUT_PATH = build_path([SRC_FILE_PATH, "..", "output"])
@@ -169,6 +169,10 @@ else:
     edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'emission_targets_uganda.csv'])
     edgar_df = dru.get_edgar_region_df(edgar_emission_db_path)
 
+# Check if the EDGAR DataFrame is empty
+logging.info(f"EDGAR DataFrame shape: {edgar_df.shape}")
+if edgar_df.empty:
+    raise ValueError(f"EDGAR DataFrame is empty. Please check that your iso_alpha_3 is in {edgar_emission_db_path}")
 
 # Initialize global variable to store the previous calculated error
 previous_error = float('inf')

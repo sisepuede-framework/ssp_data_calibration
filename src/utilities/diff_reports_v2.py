@@ -191,6 +191,7 @@ class DiffReportUtils:
 
             if debug and missing_variables:
                 print(f"Missing variables for {row['subsector']} {missing_variables}")
+                print(f"Variables: {vars_list}")
 
             if missing_variables:
                 # Set subsector_total_emissions to NaN if missing variables

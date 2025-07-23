@@ -8,9 +8,10 @@ from pyswarm import pso  # Install with: pip install pyswarm
 import warnings
 warnings.filterwarnings("ignore")
 from utilities.utils import HelperFunctions, SSPModelForCalibration, ErrorFunctions
-from utilities.diff_reports import DiffReportUtils
+from utilities.diff_reports_v2 import DiffReportUtils
 import logging
 from sisepuede.manager.sisepuede_examples import SISEPUEDEExamples
+from ssp_transformations_handler.GeneralUtils import GeneralUtils
 import json
 
 
@@ -22,6 +23,8 @@ start_time = time.time()
 
 # Initialize helper functions
 helper_functions = HelperFunctions()
+gu = GeneralUtils()
+
 # Paths
 SRC_FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 build_path = lambda PATH: os.path.abspath(os.path.join(*PATH))
@@ -36,8 +39,8 @@ OPT_OUTPUT_PATH = build_path([SRC_FILE_PATH,"..", "output"])
 
 # Make sure the output directory exists
 os.makedirs(OPT_OUTPUT_PATH, exist_ok=True)
-# Get important params from the YAML file
 
+# Get important params from the YAML file
 try:
     yaml_file = 'uganda_opt_config.yaml'
 except IndexError:
@@ -51,7 +54,7 @@ stressed_variables_report_version = param_dict['stressed_variables_report_versio
 input_data_file_to_calibrate = param_dict["input_data_file_to_calibrate"]
 detailed_diff_report_flag = param_dict['detailed_diff_report_flag']
 energy_model_flag = param_dict['energy_model_flag']
-use_edgar_db_flag = param_dict['use_edgar_db_flag']
+emission_targets_file = param_dict['emission_targets_file']
 sim_init_year = param_dict['sim_init_year']
 comparison_year = param_dict['comparison_year']
 subsector_to_calibrate = param_dict['subsector_to_calibrate']
@@ -68,7 +71,7 @@ logging.info(f"Starting optimization for {target_region} (ISO code: {iso_alpha_3
 logging.info(f"Stressed variables report version: {stressed_variables_report_version}")
 logging.info(f"Input data file to calibrate: {input_data_file_to_calibrate}")
 logging.info(f"Energy model flag: {energy_model_flag}")
-logging.info(f"Use EDGAR DB flag: {use_edgar_db_flag}")
+logging.info(f"Emission targets file: {emission_targets_file}")
 logging.info(f"Simulation initial year: {sim_init_year}")
 logging.info(f"Comparison year: {comparison_year}")
 logging.info(f"Subsector to calibrate: {subsector_to_calibrate}")
@@ -104,7 +107,7 @@ df_input = pd.read_csv(REAL_DATA_FILE_PATH)
 
 # Add missing columns and reformat the input datas
 df_input = df_input.rename(columns={'period': 'time_period'})
-df_input = helper_functions.add_missing_cols(cr, df_input.copy())
+df_input = gu.add_missing_cols(cr, df_input.copy())
 df_input = df_input.drop(columns='iso_code3', errors='ignore')
 
 #NOTE: This is under review
@@ -126,11 +129,6 @@ stressed_vars_mapping = stressed_vars_mapping.reset_index(drop=True)
 
 # Set group_id as integer
 stressed_vars_mapping['group_id'] = stressed_vars_mapping['group_id'].astype(int)
-
-
-# Get the list of vars to clip
-vars_to_clip = stressed_vars_mapping[stressed_vars_mapping['is_capped'] == 1]['variable_name'].tolist()
-
 
 # Make sure stressed_vars_mapping is sorted by group_id
 stressed_vars_mapping = stressed_vars_mapping.sort_values(by='group_id', ascending=True)
@@ -159,15 +157,11 @@ ef = ErrorFunctions()
 
 #  Initialize the DiffReportUtils class
 edgar_ssp_cw_path = build_path([SECTORAL_REPORT_MAPPING_PATH, ssp_edgar_cw_file_name])
-dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, use_edgar_db_flag=use_edgar_db_flag, sim_init_year=sim_init_year, comparison_year=comparison_year)
+dru = DiffReportUtils(iso_alpha_3, edgar_ssp_cw_path, SECTORAL_REPORT_PATH, energy_model_flag, sim_init_year=sim_init_year, comparison_year=comparison_year)
 
-# Generate EDGAR df
-if use_edgar_db_flag:
-    edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'CSC-GHG_emissions-April2024_to_calibrate.csv'])
-    edgar_df = dru.edgar_emission_db_etl(edgar_emission_db_path)
-else:
-    edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'emission_targets_uganda.csv'])
-    edgar_df = dru.get_edgar_region_df(edgar_emission_db_path)
+
+edgar_emission_db_path = build_path([SECTORAL_REPORT_MAPPING_PATH, 'emission_targets_uganda.csv'])
+edgar_df = dru.get_edgar_region_df(edgar_emission_db_path)
 
 # Check if the EDGAR DataFrame is empty
 logging.info(f"EDGAR DataFrame shape: {edgar_df.shape}")
@@ -209,16 +203,20 @@ def objective_function(x):
     
     # x: scaling factors for each group_id
     # logging.info(f"Current scaling factors: {x}")
-    
+
+    logging.info(f"Scaling factors size: {x.shape}")
+
     modified_df = df_input.copy()
     
-    # TODO: Vectorize this loop
-    # Scale the variables per group
+    # Scale the variables per group, handle missing variables gracefully
     for group_id in reordered_dict:
-        # print('group_id:', group_id)
         for var in reordered_dict[group_id]:
-            modified_df[var] = modified_df[var] * x[group_id]
+            if var in modified_df.columns:
+                modified_df[var] = modified_df[var] * x[group_id]
+            else:
+                logging.warning(f"Variable '{var}' not found in input DataFrame. Skipping scaling for this variable.")
     
+    logging.info(f"Scaled input DataFrame shape: {modified_df.shape}")
 
     processed_input_df = modified_df.copy()
 

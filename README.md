@@ -5,31 +5,56 @@ that projected emissions are consistent with reference inventories (for
 example EDGAR).  Optimisation is performed via Particle Swarm
 Optimisation (PSO).
 
-## Get Started
+## Instructions: Setting Up the SISEPUEDE Environment
 
-Create a conda env with python 3.11 (You can use any name)
+### 1. **Go to the `environment.yml` file**
 
-```sh
-conda create -n opt_env python=3.11
+Obtain the provided `environment.yml` file for SISEPUEDE.
+
+---
+
+### 2. **Create the Environment from the `.yml` File**
+
+In your terminal, navigate to the directory containing your `environment.yml` file, then run:
+
+```bash
+conda env create -f environment.yml
 ```
 
-Activate the env
+This will create a new Conda environment.
 
-```sh
-conda activate opt_env
+---
+
+### 4. **Activate the Environment**
+
+After installation, activate your new environment with:
+
+```bash
+conda activate <your_env_name>
 ```
 
-Install the working version of the sisepuede package
+*(Replace `<your_env_name>` with the name specified in the `.yml` file, e.g., `opt_env`)*
 
-```sh
-pip install git+https://github.com/jcsyme/sisepuede.git@working_version
-```
+---
 
-Install additional libraries
+### 5. **Done!**
 
-```sh
-pip install -r requirements.txt
-```
+Your environment is now ready to use, with all dependencies (including those installed via pip) preconfigured.
+
+---
+
+#### **Tips:**
+
+* If you update the `environment.yml` file later, you can update your environment with:
+
+  ```bash
+  conda env update -f environment.yml --prune
+  ```
+* You can list all your environments with:
+
+  ```bash
+  conda env list
+  ```
 
 ## Repository structure
 

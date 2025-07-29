@@ -3,7 +3,11 @@ import numpy as np
 import pandas as pd
 import time
 from datetime import datetime
-from pyswarm import pso  # Install with: pip install pyswarm
+import pyswarms as ps
+from pyswarms.single.global_best import GlobalBestPSO
+from pyswarms.utils.functions import single_obj as fx
+from pyswarms.utils.plotters import plot_cost_history, plot_contour, plot_surface
+import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 from utilities.utils import HelperFunctions, SSPModelForCalibration, ErrorFunctions
@@ -198,8 +202,12 @@ def objective_function(x):
     global previous_error
     global edgar_df
     global reordered_dict
-    
-    
+    global iteration_counter
+
+    # Increment iteration counter
+    iteration_counter += 1
+    logging.info(f"Starting iteration {iteration_counter}")
+
     # x: scaling factors for each group_id
     # logging.info(f"Current scaling factors: {x}")
 
@@ -276,16 +284,30 @@ def objective_function(x):
 
     return error_val
 
+# Vectorized objective function for PSO
+def vectorized_objective(x: np.ndarray) -> np.ndarray:
+    # x is shape (n_particles, dims)
+    return np.array([objective_function(x_i) for x_i in x])
+
+
+# initialize iteration counter
+iteration_counter = 0
+
 # Initialize the PSO optimizer
-best_solution, best_value = pso(
-    objective_function,
-    l_bounds,
-    u_bounds,
-    swarmsize=swarm_size,
-    maxiter=maxiter,
-    )
+options = {'c1': 0.5, 'c2': 0.3, 'w': 0.9}
+dimensions = len(l_bounds)
+optimizer = GlobalBestPSO(
+    n_particles=swarm_size,
+    dimensions=dimensions,
+    options=options,
+    bounds=(l_bounds, u_bounds)
+)
 
-
+# Run the PSO optimization
+best_cost, best_pos = optimizer.optimize(
+    vectorized_objective,
+    iters=maxiter
+)
 
 logging.info(f"PSO optimization completed for {target_region} (run id: {unique_id})")
 # Record the end time
@@ -293,10 +315,10 @@ end_time = time.time()
 elapsed_time = end_time - start_time
 logging.info(f"Elapsed time: {elapsed_time:.2f} seconds")
 # logging.info(f"Best scaling vector: {best_solution}")
-logging.info(f"Best error: {best_value}")
+logging.info(f"Best error: {best_cost}")
 
 # Save scaling vector
-scaling_vector_df = pd.DataFrame({'group_id': np.arange(len(best_solution)), 'scaling_factor': best_solution})
+scaling_vector_df = pd.DataFrame({'group_id': np.arange(len(best_pos)), 'scaling_factor': best_pos})
 scaling_vector_df.to_csv(build_path([RUN_OUTPUT_DIR, f"scaling_vector_{unique_id}.csv"]), index=False)
 
 # Save the reordered dictionary to a JSON file
@@ -308,5 +330,9 @@ with open(build_path([RUN_OUTPUT_DIR, f"reordered_dict_{unique_id}.json"]), 'w')
     json.dump(serializable_dict, json_file, indent=2)
 
 # log the best_solution len and the serializable_dict len
-logging.info(f"Best solution length: {len(best_solution)}")
+logging.info(f"Best solution length: {len(best_pos)}")
 logging.info(f"Reordered dictionary keys length: {len(serializable_dict.keys())}")
+
+# Plot the cost history
+plot_cost_history(optimizer.cost_history)
+plt.savefig(build_path([RUN_OUTPUT_DIR, f"cost_history_{unique_id}.png"]))

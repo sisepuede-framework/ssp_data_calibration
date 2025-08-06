@@ -338,8 +338,8 @@ class DiffReportUtils:
         merged_rows = df_merged.shape[0]
 
         # Check if the number of rows in the merged df is different from the ssp_emissions_report
-        if merged_rows != ssp_rows:
-            print(f"Warning: The number of rows in the merged DataFrame ({merged_rows}) is different from the SSP emissions report ({ssp_rows}). This may indicate missing data or mismatched classes.")
+        #if merged_rows != ssp_rows:
+            #print(f"Warning: The number of rows in the merged DataFrame ({merged_rows}) is different from the SSP emissions report ({ssp_rows}). This may indicate missing data or mismatched classes.")
 
         return df_merged
     

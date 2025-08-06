@@ -5,7 +5,7 @@ ids,Subsector,Gas,Edgar_Class,Edgar_Subsector,Edgar_Sector,UGA
 4:agrc:co2,agrc,co2,AG - Crops:CO2,AG - Crops,Agriculture,0
 5:agrc:ch4,agrc,ch4,AG - Crops:CH4,AG - Crops,Agriculture,0.576886757
 6:agrc:n2o,agrc,n2o,AG - Crops:N2O,AG - Crops,Agriculture,8.092842785
-7:scoe:co2,scoe,co2,EN - Building:CO2,EN - Building,Energy,0.611469345
+7:scoe:co2,scoe,co2,EN - Building:CO2,EN - Building,Energy,44.8128
 8:scoe:ch4,scoe,ch4,EN - Building:CH4,EN - Building,Energy,2.554440753
 9:scoe:n2o,scoe,n2o,EN - Building:N2O,EN - Building,Energy,0.323356375
 10:entc:co2,entc,co2,EN - Electricity/Heat:CO2,EN - Electricity/Heat,Energy,0.056306178
@@ -14,7 +14,7 @@ ids,Subsector,Gas,Edgar_Class,Edgar_Subsector,Edgar_Sector,UGA
 13:fgtv:co2,fgtv,co2,EN - Fugitive Emissions:CO2,EN - Fugitive Emissions,Energy,0
 14:fgtv:ch4,fgtv,ch4,EN - Fugitive Emissions:CH4,EN - Fugitive Emissions,Energy,7.845444409
 15:fgtv:n2o,fgtv,n2o,EN - Fugitive Emissions:N2O,EN - Fugitive Emissions,Energy,0.093892254
-16:inen:co2,inen,co2,EN - Manufacturing/Construction:CO2,EN - Manufacturing/Construction,Energy,1.282418098
+16:inen:co2,inen,co2,EN - Manufacturing/Construction:CO2,EN - Manufacturing/Construction,Energy,5.5982
 17:inen:ch4,inen,ch4,EN - Manufacturing/Construction:CH4,EN - Manufacturing/Construction,Energy,0.223206125
 18:inen:n2o,inen,n2o,EN - Manufacturing/Construction:N2O,EN - Manufacturing/Construction,Energy,0.157471722
 19:trns:co2,trns,co2,EN - Transportation:CO2,EN - Transportation,Energy,3.824464332
@@ -60,5 +60,5 @@ ids,Subsector,Gas,Edgar_Class,Edgar_Subsector,Edgar_Sector,UGA
 66:ccsq:ch4,ccsq,ch4,CCSQ:CH4,CCSQ,CCSQ,0
 67:ccsq:co2,ccsq,co2,CCSQ:CO2,CCSQ,CCSQ,0
 68:ccsq:n2o,ccsq,n2o,CCSQ:N2O,CCSQ,CCSQ,0
-69:frst:total,frst,,,,,-10.524
+69:frst:total,frst,,,,,-10.630
 70:lndu:total,lndu,,,,,10.611

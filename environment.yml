@@ -10,4 +10,4 @@ dependencies:
   - pip:
       - git+https://github.com/jcsyme/sisepuede.git@ff05cc079595e3a79c02eeb06ad373117ebbaabc
       - ssp-transformations-handler
-      - pyswarm==0.6
+      - pyswarms

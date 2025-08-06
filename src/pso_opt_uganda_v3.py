@@ -45,7 +45,8 @@ detailed_diff_report_flag = param_dict['detailed_diff_report_flag']
 energy_model_flag = param_dict['energy_model_flag']
 emission_targets_file = param_dict['emission_targets_file']
 sim_init_year = param_dict['sim_init_year']
-comparison_init_year = param_dict['comparison_init_year']
+filter_start_year = param_dict['filter_start_year']
+filter_end_year = param_dict['filter_end_year']
 comparison_year = param_dict['comparison_year']
 subsector_to_calibrate = param_dict['subsector_to_calibrate']
 error_type = param_dict['error_type']
@@ -71,8 +72,8 @@ df_input = df_input.rename(columns={'period': 'time_period'})
 gu = GeneralUtils()
 df_input = gu.add_missing_cols(cr, df_input.copy())
 df_input = df_input.drop(columns='iso_code3', errors='ignore')
-time_period_init_year = comparison_init_year - sim_init_year
-time_period_end_year = comparison_year - sim_init_year
+time_period_init_year = filter_start_year - sim_init_year
+time_period_end_year = filter_end_year - sim_init_year
 df_input = df_input[(df_input['time_period'] >= time_period_init_year) & (df_input['time_period'] <= time_period_end_year)].reset_index(drop=True)
 
 # === Variable Mapping ===

@@ -3,12 +3,12 @@ iso_alpha_3: UGA
 stressed_variables_report_version: stressed_variables_report_2025_06_06.xlsx
 input_data_file_to_calibrate: new_uganda_inputs.csv
 emission_targets_file: emission_targets_uganda.csv
-input_rows: 10
 detailed_diff_report_flag: true
 energy_model_flag: false
-sim_init_year: 2015 # NOTE:Most of the ssp data starts from 2015 but make sure to check the input data file
-comparison_init_year: 2020 # Note: this is the initial year to filter the input data file. You need at least 3 years of data for the model to run
-comparison_year: 2022 # Note: this is the end year to filter the input data file and also the year to compare the input data file with the targets
+sim_init_year: 2015 # NOTE: Most of the ssp data starts from 2015 but make sure to check the input data file
+filter_start_year: 2015 # Note: intial year to filter the input data file
+filter_end_year: 2017 # Note: final year to filter the input data file you need at least 3 years of data
+comparison_year: 2015
 subsector_to_calibrate:
 error_type: mse
 weight_type: norm_weight

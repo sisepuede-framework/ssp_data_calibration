@@ -167,3 +167,10 @@ cython_debug/
 
 # ignore output dir
 output/
+
+# ignore .vscode files
+.vscode/
+
+
+# ignore .DS_Store files
+.DS_Store

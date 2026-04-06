@@ -13,14 +13,13 @@ class DiffReportUtils:
         load_ssp_edgar_cw(self):
         clean_ssp_out_data(self, ssp_out_df):
         calculate_weights(self, edgar_region_df):
-        edgar_emission_db_etl(self, file_path):
         generate_ssp_emissions_report(self, ssp_out_df):
         adjust_duplicated_edgar_classes(self, df_ssp_edgar):
         calculate_ssp_edgar_deviation(self, df_ssp_edgar):
         merge_ssp_with_edgar(self, ssp_emissions_report, edgar_emissions_df):
     """
     
-    def __init__(self, iso_alpha_3, ssp_edgar_cw_path, sectoral_report_dir_path, energy_model_flag, use_edgar_db_flag=True, sim_init_year=2015, comparison_year=2015):
+    def __init__(self, iso_alpha_3, ssp_edgar_cw_path, sectoral_report_dir_path, energy_model_flag, sim_init_year=2015, comparison_year=2015):
         """
         Initializes the DiffReports class with the given parameters.
 
@@ -44,7 +43,6 @@ class DiffReportUtils:
         self.energy_model_flag = energy_model_flag
         self.sim_init_year = sim_init_year
         self.comparison_year = comparison_year
-        self.use_edgar_db_flag = use_edgar_db_flag
 
     def load_ssp_edgar_cw(self):
         """
@@ -124,49 +122,6 @@ class DiffReportUtils:
         return df
     
     
-    def edgar_emission_db_etl(self, file_path):
-        """
-        Extract, transform, and load (ETL) process for EDGAR emissions database.
-        This method reads a CSV file containing EDGAR emissions data, filters it for a specific region,
-        processes the data to create relevant columns, and calculates weights and adjusted emissions.
-        Args:
-            file_path (str): The file path to the EDGAR emissions database CSV file.
-        Returns:
-            pd.DataFrame: A DataFrame containing the processed EDGAR emissions data with the following columns:
-                - iso_alpha_3: ISO alpha-3 region code.
-                - edgar_class: Combined class of CSC Subsector and Gas.
-                - edgar_emission: Emission value for the comparison year.
-                - year: The comparison year.
-                - weight columns: Additional columns calculated by the `calculate_weights` method.
-                - edgar_emission_epsilon: Adjusted emission value with epsilon added.
-        """
-       
-        # Load db csv
-        edgar_emissions_db = pd.read_csv(file_path, encoding='latin1')
-
-        # Filter the db for the specific region
-        edgar_region_df = edgar_emissions_db[edgar_emissions_db['Code'] == self.iso_alpha_3].reset_index(drop=True)
-
-        # Create edgar_class column by combining Subsector and Gas columns
-        edgar_region_df['edgar_class'] = edgar_region_df['CSC Subsector'] + ':' + edgar_region_df['Gas']
-
-        # Keep relevant columns
-        edgar_region_df = edgar_region_df[['Code', 'edgar_class', str(self.comparison_year)]]
-
-        # Rename columns
-        edgar_region_df.rename(columns={str(self.comparison_year): 'edgar_emission', 'Code': 'iso_alpha_3'}, inplace=True)
-
-        # Add a year column
-        edgar_region_df['year'] = int(self.comparison_year)
-
-        # Add weight columns NOTE: This will be uncommented when we have the complete mapping of Edgar classes
-        # edgar_region_df = self.calculate_weights(edgar_region_df)
-
-        # Create a edgar_emission_epsilon column NOTE: This will be uncommented when we have the complete mapping of Edgar classes
-        # edgar_region_df['edgar_emission_epsilon'] = edgar_region_df['edgar_emission'] + self.epsilon
-        
-        return edgar_region_df
-    
     def get_edgar_region_df(self, file_path):
         """
         Alternate method to get the EDGAR region DataFrame.
@@ -179,7 +134,7 @@ class DiffReportUtils:
         df = pd.read_csv(file_path)
 
         # Filter the df for the specific region
-        df = df[["Subsector", "Edgar_Class", self.iso_alpha_3]]
+        df = df[["ids", "Subsector", "Edgar_Class", self.iso_alpha_3]]
 
         df["iso_alpha_3"] = self.iso_alpha_3  # Add iso_alpha_3 column
         df["year"] = self.comparison_year
@@ -191,12 +146,12 @@ class DiffReportUtils:
         df.columns = df.columns.str.lower()
 
         # Reorder the columns so we have the iso_alpha_3, edgar_class, edgar_emission, year
-        df = df[['iso_alpha_3', 'subsector', 'edgar_class', 'edgar_emission', 'year']]
+        df = df[['ids', 'iso_alpha_3', 'edgar_emission', 'year']]
 
 
         return df
     
-    def generate_ssp_emissions_report(self, ssp_out_df, model_failed_flag=False):
+    def generate_ssp_emissions_report(self, ssp_out_df, model_failed_flag=False, debug=False):
         """
         Generate an SSP emissions report based on the provided simulation DataFrame.
         This method creates a draft SSP emissions report from the `ssp_edgar_cw` table,
@@ -234,9 +189,10 @@ class DiffReportUtils:
             # Set missing_variables to True if any variable in vars_list is not in simulation_df otherwise False
             missing_variables = any(var not in simulation_df_cols for var in vars_list)
 
-            #NOTE: DEBUG ONLY PLEASE REMOVE
-            # print(f"Missing variables for {row['subsector']} {missing_variables}")
-            
+            if debug and missing_variables:
+                print(f"Missing variables for {row['subsector']} {missing_variables}")
+                print(f"Variables: {vars_list}")
+
             if missing_variables:
                 # Set subsector_total_emissions to NaN if missing variables
                 subsector_total_emissions = np.nan
@@ -252,13 +208,15 @@ class DiffReportUtils:
 
         # Set model_failed_flag to True if there are missing variables
         if missing_variables and self.energy_model_flag:
-            print(f"Missing variables for {row['subsector']}")
+            if debug:
+                print(f"Missing variables for {row['subsector']}")
             model_failed_flag = True
 
         elif missing_variables and not self.energy_model_flag:
             
             if row['subsector'] not in ['entc', 'fgtv', 'ccsq']:
-                print(f"Missing variables for {row['subsector']}")
+                if debug:
+                    print(f"Missing variables for {row['subsector']}")
                 model_failed_flag = True
             else: 
                 model_failed_flag = False
@@ -266,7 +224,7 @@ class DiffReportUtils:
             model_failed_flag = False
 
         # Keep only relevant columns
-        ssp_emissions_report = ssp_emissions_report[['subsector', 'gas', 'edgar_class', 'ssp_emission']]
+        ssp_emissions_report = ssp_emissions_report[['ids', 'subsector', 'ssp_emission']]
 
         return ssp_emissions_report, model_failed_flag
     
@@ -287,12 +245,16 @@ class DiffReportUtils:
 
         df = ssp_emissions_report.copy()
 
-        # Rename the subsectors to group
-        df.loc[df['edgar_class'] == "AG - Livestock:CH4", "subsector"] = "lvst-lsmm"
 
-        # Group by subsector and edgar_class
-        df = df.groupby(['subsector', 'edgar_class'], as_index=False)[emissions_col_name].sum()
-
+        if 'subsector' in df.columns:
+            df = df.groupby(['ids'], as_index=False).agg({
+            emissions_col_name: 'sum',
+            'subsector': 'first'
+            })
+        else:
+            df = df.groupby(['ids'], as_index=False).agg({
+            emissions_col_name: 'sum'
+            })
         return df
 
 
@@ -364,7 +326,7 @@ class DiffReportUtils:
         ssp_rows = df.shape[0]
 
         # Merge the ssp_emissions_report with edgar_emissions_df
-        df_merged = pd.merge(df, edgar_emissions_df, how='left', on='edgar_class')
+        df_merged = pd.merge(df, edgar_emissions_df, how='left', on='ids')
 
         #NOTE: This is a temporal fix until we have a complete mapping of Edgar classes
         #NOTE: Commented out since we are now groupping the ssp subsectors to match edgar class
@@ -376,8 +338,8 @@ class DiffReportUtils:
         merged_rows = df_merged.shape[0]
 
         # Check if the number of rows in the merged df is different from the ssp_emissions_report
-        if merged_rows != ssp_rows:
-            print(f"Warning: The number of rows in the merged DataFrame ({merged_rows}) is different from the SSP emissions report ({ssp_rows}). This may indicate missing data or mismatched classes.")
+        #if merged_rows != ssp_rows:
+            #print(f"Warning: The number of rows in the merged DataFrame ({merged_rows}) is different from the SSP emissions report ({ssp_rows}). This may indicate missing data or mismatched classes.")
 
         return df_merged
     
@@ -388,20 +350,12 @@ class DiffReportUtils:
         # Group the subsectors 'trns', 'inen', and 'scoe', and sum the 'ssp_emission' and 'edgar_emission' columns
         df_grouped = df[df['subsector'].isin(['trns', 'inen', 'scoe'])].groupby(['subsector', 'iso_alpha_3', 'year'], as_index=False).agg({
             'ssp_emission': 'sum',
-            'edgar_emission': 'sum'
+            'edgar_emission': 'sum',
+            'ids': 'first'  # Keep the first 'ids' value for each group
         })
 
-        new_edgar_class = {
-            'trns': 'EN - Transportation',
-            'inen': 'EN - Manufacturing/Construction',
-            'scoe': 'EN - Building'
-        }
-
-        # Add the new edgar_class column
-        df_grouped['edgar_class'] = df_grouped['subsector'].map(new_edgar_class)
-
         # Reorder the columns
-        df_grouped = df_grouped[['subsector', 'edgar_class', 'ssp_emission', 'iso_alpha_3', 'edgar_emission', 'year']]
+        df_grouped = df_grouped[['ids', 'subsector', 'ssp_emission', 'iso_alpha_3', 'edgar_emission', 'year']]
 
     
         # Add the remaining rows that do not belong to the selected subsectors
@@ -460,11 +414,8 @@ class DiffReportUtils:
         # Group the ssp_emissions_report to match the edgar_emission_df. NOTE: This is a temporal fix
         ssp_emissions_report = self.group_ssp_emissions_report_vars(ssp_emissions_report)
 
-        # Group the edgar_emission_df if use_edgar_db_flag is False
-        if not self.use_edgar_db_flag:
-            edgar_emission_df = self.group_ssp_emissions_report_vars(edgar_emission_df, emissions_col_name='edgar_emission')
-            edgar_emission_df["iso_alpha_3"] = self.iso_alpha_3  # Add iso_alpha_3 column again
-            edgar_emission_df = edgar_emission_df.drop(columns="subsector")  # Drop subsector column since we are grouping by edgar_class
+        edgar_emission_df = self.group_ssp_emissions_report_vars(edgar_emission_df, emissions_col_name='edgar_emission')
+        edgar_emission_df["iso_alpha_3"] = self.iso_alpha_3  # Add iso_alpha_3 column again
 
         # Merge the SSP emissions report with the EDGAR emissions data
         merged_df = self.merge_ssp_with_edgar(ssp_emissions_report, edgar_emission_df)

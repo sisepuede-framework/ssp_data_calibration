@@ -15,3 +15,4 @@ weight_type: norm_weight
 ssp_edgar_cw: sisepuede_edgar_active_crosswalk.csv
 swarmsize: 468
 maxiter: 2
+n_processes: 2
